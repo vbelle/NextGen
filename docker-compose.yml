@@ -1,0 +1,27 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      NEXTGEN_APP_PASSWORD: ${NEXTGEN_APP_PASSWORD}
+      NEXTGEN_CREDENTIAL_KEY: ${NEXTGEN_CREDENTIAL_KEY}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+      NEXTGEN_DB_PATH: /data/nextgen.db
+    volumes:
+      - nextgen-data:/data
+    depends_on:
+      - ollama
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    restart: unless-stopped
+
+volumes:
+  nextgen-data:
+  ollama-data:
