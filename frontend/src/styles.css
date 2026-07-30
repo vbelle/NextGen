@@ -1,0 +1,209 @@
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+}
+.ng-app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+.ng-nav {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 16px;
+  border-bottom: 1px solid #ddd;
+}
+.ng-main {
+  flex: 1;
+  overflow: auto;
+}
+.ng-toolbar {
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  border-bottom: 1px solid #eee;
+  align-items: center;
+}
+.ng-errors {
+  color: crimson;
+  margin: 4px 16px;
+}
+.ng-node {
+  border: 1px solid #999;
+  border-radius: 6px;
+  padding: 6px;
+  background: white;
+  width: 160px;
+}
+.ng-node-title {
+  font-weight: 600;
+  font-size: 11px;
+  margin-bottom: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ng-node input,
+.ng-node textarea,
+.ng-node select {
+  width: 100%;
+  font-size: 11px;
+  margin-top: 3px;
+  padding: 3px 4px;
+  box-sizing: border-box;
+}
+.ng-node textarea {
+  resize: vertical;
+  min-height: 32px;
+}
+.ng-node-ports {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #666;
+  margin-top: 4px;
+}
+.ng-version-history {
+  width: 220px;
+  border-left: 1px solid #eee;
+  padding: 8px 12px;
+  overflow: auto;
+  font-size: 12px;
+}
+.ng-version-history h4 {
+  margin: 0 0 8px;
+  font-size: 12px;
+}
+.ng-version-history ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.ng-version-history li {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 0;
+  border-bottom: 1px solid #f2f2f2;
+}
+.ng-version-active {
+  color: #2a7a2a;
+  font-weight: 600;
+}
+.ng-chat {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.ng-chat-status {
+  font-size: 11px;
+  color: #888;
+  padding: 4px 8px;
+}
+.ng-chat-transcript {
+  flex: 1;
+  overflow: auto;
+  padding: 8px 16px;
+}
+.ng-chat-msg {
+  margin: 6px 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  max-width: 60%;
+}
+.ng-chat-msg-user {
+  background: #dceeff;
+  margin-left: auto;
+}
+.ng-chat-msg-system {
+  background: #f0f0f0;
+}
+.ng-chat-pending {
+  font-style: italic;
+  color: #888;
+}
+.ng-chat-input {
+  display: flex;
+  gap: 8px;
+  padding: 8px 16px;
+  border-top: 1px solid #eee;
+}
+.ng-chat-input input {
+  flex: 1;
+  padding: 8px;
+}
+.ng-workflow-list ul {
+  list-style: none;
+  padding: 0 16px;
+}
+.ng-workflow-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+.ng-workflow-run {
+  color: #2a7a2a;
+}
+
+.ng-chat-sidecar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  width: 340px;
+  background: white;
+  border-left: 1px solid #ddd;
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.18s ease-out;
+  z-index: 100;
+}
+.ng-chat-sidecar-open {
+  transform: translateX(0);
+}
+.ng-chat-sidecar-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #eee;
+}
+.ng-chat-sidecar-title {
+  font-weight: 600;
+  font-size: 13px;
+}
+.ng-chat-back {
+  font-size: 11px;
+}
+.ng-chat-close {
+  margin-left: auto;
+}
+.ng-chat-picker {
+  padding: 8px 12px;
+  overflow: auto;
+  flex: 1;
+}
+.ng-chat-picker-hint {
+  color: #888;
+  font-size: 12px;
+}
+.ng-chat-picker ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.ng-chat-picker li {
+  margin: 4px 0;
+}
+.ng-chat-picker li button {
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+}

@@ -1,0 +1,57 @@
+"""Default LLM provider — local Ollama. LLM calls are serialized process-wide
+(FR-026, research.md §6) so multiple concurrent runs never overload one shared
+Ollama instance."""
+
+from __future__ import annotations
+
+import asyncio
+import os
+
+from langchain_core.messages import HumanMessage, ToolMessage
+from langchain_ollama import ChatOllama
+
+# One semaphore per process, shared by every OllamaProvider instance/run — and
+# also imported by app/vectorstore.py, since embeddings calls hit the same
+# shared Ollama instance and FR-026's concern applies to those too.
+OLLAMA_SEMAPHORE = asyncio.Semaphore(1)
+
+# Safety bound on the function-calling loop (User Story 11, FR-016) — not
+# spec'd explicitly, but an unbounded "model keeps requesting tools" loop
+# would be the same class of runaway behavior the Retry node's max_attempts
+# exists to prevent, so the same instinct applies here.
+MAX_TOOL_ROUNDS = 5
+
+
+class OllamaProvider:
+    def __init__(self, base_url: str | None = None):
+        self.base_url = base_url or os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
+
+    async def generate(self, *, model: str, prompt: str, tools: list | None = None) -> str:
+        chat = ChatOllama(model=model, base_url=self.base_url)
+        if tools:
+            chat = chat.bind_tools(tools)
+
+        messages = [HumanMessage(content=prompt)]
+        async with OLLAMA_SEMAPHORE:
+            response = await chat.ainvoke(messages)
+
+        rounds = 0
+        while tools and getattr(response, "tool_calls", None):
+            rounds += 1
+            if rounds > MAX_TOOL_ROUNDS:
+                raise RuntimeError(
+                    f"Model requested more than {MAX_TOOL_ROUNDS} tool-calling rounds "
+                    "in a single generation — aborting to avoid a runaway loop"
+                )
+            messages.append(response)
+            for call in response.tool_calls:
+                tool = next((t for t in tools if t.name == call["name"]), None)
+                if tool is None:
+                    tool_result = f"Error: no tool named '{call['name']}' is available"
+                else:
+                    tool_result = await tool.ainvoke(call["args"])
+                messages.append(ToolMessage(content=str(tool_result), tool_call_id=call["id"]))
+            async with OLLAMA_SEMAPHORE:
+                response = await chat.ainvoke(messages)
+
+        return response.content
