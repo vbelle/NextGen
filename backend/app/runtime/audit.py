@@ -9,7 +9,13 @@ from datetime import datetime, timezone
 
 from sqlmodel import Session
 
+import time
+from sqlalchemy.exc import OperationalError
+
+from app.logging import get_logger
 from app.models.run import NodeExecution
+
+logger = get_logger(__name__)
 
 
 def record_node_execution(
@@ -36,5 +42,18 @@ def record_node_execution(
         ended_at=datetime.now(timezone.utc),
     )
     session.add(execution)
-    session.commit()
+    
+    # Retry loop for transient SQLite database locks (WAL mode contention)
+    max_retries = 5
+    for attempt in range(max_retries):
+        try:
+            session.commit()
+            break
+        except OperationalError as exc:
+            if "database is locked" in str(exc).lower() and attempt < max_retries - 1:
+                logger.warning("Database locked while committing audit log for node '%s', retrying (%d/%d)...", node_id, attempt + 1, max_retries)
+                time.sleep(0.2 * (attempt + 1))
+            else:
+                logger.error("Failed to commit audit log for node '%s' after %d attempts: %s", node_id, attempt + 1, exc)
+                raise
     return execution
