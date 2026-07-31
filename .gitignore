@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Databases & local data
+*.db
+*.db-shm
+*.db-wal
+data/
+
+# Environment files
+.env
+
+# Node / Frontend
+node_modules/
+dist/
+.vite/
+
+# System / OS
+.DS_Store
