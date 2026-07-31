@@ -20,13 +20,24 @@ from app.graph.state import GraphState
 from app.runtime.audit import record_node_execution
 
 
+from app.logging import get_logger
+
+logger = get_logger(__name__)
+
+
 def _make_node_fn(node_id: str, node_type: str, config: dict, executor):
     async def _node_fn(state: GraphState) -> dict:
         # timezone.utc, not the datetime.UTC alias, to match every other
         # started_at/ended_at timestamp in this codebase (e.g. app/runtime/audit.py).
         started_at = datetime.now(timezone.utc)  # noqa: UP017
         input_data = state.get("node_outputs", {}).get("__latest__")
-        result = await executor(node_id=node_id, config=config, state=state)
+        logger.info("Entering node '%s' (type=%s)", node_id, node_type)
+        try:
+            result = await executor(node_id=node_id, config=config, state=state)
+            logger.info("Exited node '%s' (type=%s) with result keys: %s", node_id, node_type, list(result.keys()))
+        except Exception as exc:
+            logger.error("Node '%s' (type=%s) unhandled exception: %s", node_id, node_type, exc, exc_info=True)
+            raise
 
         # Constitution VII ("Every Run Is Audited", FR-029/SC-007): one row per
         # node execution, written immediately — not batched at run end, and not

@@ -26,8 +26,11 @@ from app.graph.schema import register_node_type
 from app.graph.state import GraphState
 from app.graph.templating import render_template
 from app.graph.tool_registry import get_tool_implementation
+from app.logging import get_logger
 from app.providers.ollama_provider import OllamaProvider
 from app.runtime.audit import record_node_execution
+
+logger = get_logger(__name__)
 
 DEFAULT_TIMEOUT_SECONDS = 60
 
@@ -84,16 +87,19 @@ def _make_tool(binding: BoundTool, run_id: str | None) -> StructuredTool:
 
 
 async def execute(node_id: str, config: dict, state: GraphState) -> dict:
+    logger.info("Executing LLM node '%s'", node_id)
     cfg = LlmConfig(**config)
     try:
         rendered_prompt = render_template(cfg.prompt, state)
         provider = _get_provider(cfg.provider)
         run_id = state.get("run_id")
         tools = [_make_tool(binding, run_id) for binding in cfg.bound_tools] or None
+        logger.info("Calling provider '%s' with model '%s' (tools=%s)", cfg.provider, cfg.model, len(tools) if tools else 0)
         output = await asyncio.wait_for(
             provider.generate(model=cfg.model, prompt=rendered_prompt, tools=tools),
             timeout=cfg.timeout_seconds,
         )
+        logger.info("LLM node '%s' completed successfully", node_id)
         return {
             "node_outputs": {node_id: output, "__latest__": output},
             "last_output_port": {node_id: "success"},
@@ -102,11 +108,14 @@ async def execute(node_id: str, config: dict, state: GraphState) -> dict:
     # tool binding) routes to this node's failure output rather than crashing
     # the run.
     except Exception as exc:  # noqa: BLE001
-        error = {"error": str(exc)}
+        logger.error("LLM node '%s' failed: %s", node_id, exc, exc_info=True)
+        error_msg = str(exc) if str(exc).strip() else f"{type(exc).__name__}: Execution failed"
+        error = {"error": error_msg}
         return {
             "node_outputs": {node_id: error, "__latest__": error},
             "last_output_port": {node_id: "failure"},
         }
+
 
 
 register_node_type("llm", LlmConfig, execute)

@@ -10,6 +10,10 @@ import os
 from langchain_core.messages import HumanMessage, ToolMessage
 from langchain_ollama import ChatOllama
 
+from app.logging import get_logger
+
+logger = get_logger(__name__)
+
 # One semaphore per process, shared by every OllamaProvider instance/run — and
 # also imported by app/vectorstore.py, since embeddings calls hit the same
 # shared Ollama instance and FR-026's concern applies to those too.
@@ -27,31 +31,41 @@ class OllamaProvider:
         self.base_url = base_url or os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
 
     async def generate(self, *, model: str, prompt: str, tools: list | None = None) -> str:
-        chat = ChatOllama(model=model, base_url=self.base_url)
-        if tools:
-            chat = chat.bind_tools(tools)
+        logger.info("OllamaProvider.generate: model=%s, base_url=%s, prompt_len=%d, tools_count=%d", model, self.base_url, len(prompt), len(tools) if tools else 0)
+        try:
+            chat = ChatOllama(model=model, base_url=self.base_url)
+            if tools:
+                chat = chat.bind_tools(tools)
 
-        messages = [HumanMessage(content=prompt)]
-        async with OLLAMA_SEMAPHORE:
-            response = await chat.ainvoke(messages)
-
-        rounds = 0
-        while tools and getattr(response, "tool_calls", None):
-            rounds += 1
-            if rounds > MAX_TOOL_ROUNDS:
-                raise RuntimeError(
-                    f"Model requested more than {MAX_TOOL_ROUNDS} tool-calling rounds "
-                    "in a single generation — aborting to avoid a runaway loop"
-                )
-            messages.append(response)
-            for call in response.tool_calls:
-                tool = next((t for t in tools if t.name == call["name"]), None)
-                if tool is None:
-                    tool_result = f"Error: no tool named '{call['name']}' is available"
-                else:
-                    tool_result = await tool.ainvoke(call["args"])
-                messages.append(ToolMessage(content=str(tool_result), tool_call_id=call["id"]))
+            messages = [HumanMessage(content=prompt)]
             async with OLLAMA_SEMAPHORE:
                 response = await chat.ainvoke(messages)
 
-        return response.content
+            rounds = 0
+            while tools and getattr(response, "tool_calls", None):
+                rounds += 1
+                if rounds > MAX_TOOL_ROUNDS:
+                    msg = (
+                        f"Model requested more than {MAX_TOOL_ROUNDS} tool-calling rounds "
+                        "in a single generation — aborting to avoid a runaway loop"
+                    )
+                    logger.error("OllamaProvider.generate: %s", msg)
+                    raise RuntimeError(msg)
+                messages.append(response)
+                for call in response.tool_calls:
+                    tool = next((t for t in tools if t.name == call["name"]), None)
+                    if tool is None:
+                        tool_result = f"Error: no tool named '{call['name']}' is available"
+                    else:
+                        tool_result = await tool.ainvoke(call["args"])
+                    messages.append(ToolMessage(content=str(tool_result), tool_call_id=call["id"]))
+                async with OLLAMA_SEMAPHORE:
+                    response = await chat.ainvoke(messages)
+
+            content_str = str(response.content)
+            logger.info("OllamaProvider.generate success: response_len=%d", len(content_str))
+            return content_str
+        except Exception as exc:
+            logger.error("OllamaProvider.generate failed for model '%s': %s", model, exc, exc_info=True)
+            raise
+

@@ -18,6 +18,10 @@ from app.db import get_db_path
 from app.graph.compiler import compile_graph
 from app.models.run import Run, RunStatus
 
+from app.logging import get_logger
+
+logger = get_logger(__name__)
+
 # Tracks in-flight asyncio tasks for fast cancellation/lookup while the process is
 # alive. Not the source of truth for run state — SQLite (Run.status, the
 # checkpointer) is. See restart-reconciliation in reconcile_stale_runs() below.
@@ -56,11 +60,13 @@ async def start_run(*, session_factory, run_id: str, graph_json: dict, initial_s
     a Session with the request that started them). Takes a plain `run_id` string
     rather than an ORM Run object deliberately — the object would be detached from
     its originating Session by the time this task actually runs."""
+    logger.info("start_run initiated for run_id='%s'", run_id)
     task = asyncio.create_task(_execute(session_factory, run_id, graph_json, initial_state))
     _LIVE_TASKS[run_id] = task
 
 
 async def resume_run(*, session_factory, run_id: str, graph_json: dict, resume_value: str) -> None:
+    logger.info("resume_run initiated for run_id='%s'", run_id)
     task = asyncio.create_task(
         _execute(session_factory, run_id, graph_json, Command(resume=resume_value))
     )
@@ -70,6 +76,7 @@ async def resume_run(*, session_factory, run_id: str, graph_json: dict, resume_v
 async def _execute(session_factory, run_id: str, graph_json: dict, run_input) -> None:
     from app.runtime import notify  # local import: avoids a circular import with chat/websocket.py
 
+    logger.info("Executing run '%s'", run_id)
     checkpointer = await get_checkpointer()
     builder = compile_graph(graph_json)
     compiled = builder.compile(checkpointer=checkpointer)
@@ -80,6 +87,7 @@ async def _execute(session_factory, run_id: str, graph_json: dict, run_input) ->
         try:
             result = await compiled.ainvoke(run_input, config=config)
         except Exception as exc:  # noqa: BLE001 — any node/compiler error fails the run cleanly
+            logger.error("Run '%s' execution failed: %s", run_id, exc, exc_info=True)
             db_run.status = RunStatus.failed
             db_run.ended_at = datetime.now(timezone.utc)
             session.add(db_run)
@@ -89,6 +97,7 @@ async def _execute(session_factory, run_id: str, graph_json: dict, run_input) ->
 
         pending = _extract_interrupt(result)
         if pending is not None:
+            logger.info("Run '%s' paused waiting for input: %s", run_id, pending)
             db_run.status = RunStatus.paused
             db_run.pending_prompt = json.dumps(pending)
             session.add(db_run)
@@ -97,6 +106,7 @@ async def _execute(session_factory, run_id: str, graph_json: dict, run_input) ->
             return
 
         response_text = result.get("node_outputs", {}).get("__response__")
+        logger.info("Run '%s' completed successfully", run_id)
         db_run.status = RunStatus.completed
         db_run.ended_at = datetime.now(timezone.utc)
         db_run.pending_prompt = None
