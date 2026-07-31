@@ -50,7 +50,7 @@ case "$cmd" in
     docker compose down
     ;;
   logs)
-    docker compose logs -f app
+    docker compose logs -f
     ;;
   status)
     docker compose ps
