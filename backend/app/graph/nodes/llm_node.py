@@ -32,7 +32,7 @@ from app.runtime.audit import record_node_execution
 
 logger = get_logger(__name__)
 
-DEFAULT_TIMEOUT_SECONDS = 60
+DEFAULT_TIMEOUT_SECONDS = 180
 
 
 class BoundTool(BaseModel):
