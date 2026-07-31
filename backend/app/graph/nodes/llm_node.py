@@ -60,10 +60,15 @@ def _make_tool(binding: BoundTool, run_id: str | None) -> StructuredTool:
     impl = get_tool_implementation(binding.implementation_ref)
 
     def _run(**kwargs):
-        # timezone.utc, not the datetime.UTC alias, to match every other
-        # started_at/ended_at timestamp in this codebase (e.g. app/runtime/audit.py).
         started_at = datetime.now(timezone.utc)  # noqa: UP017
-        result = impl.func(**kwargs)
+        logger.info("[TOOL ENTRY] node_id='%s' func='%s' impl_ref='%s' args=%s", binding.node_id, binding.function_name, binding.implementation_ref, kwargs)
+        try:
+            result = impl.func(**kwargs)
+            logger.info("[TOOL EXIT SUCCESS] node_id='%s' func='%s' output_preview=%s", binding.node_id, binding.function_name, repr(str(result)[:150]))
+        except Exception as exc:
+            logger.error("[TOOL EXIT FAILURE] node_id='%s' func='%s' error=%s", binding.node_id, binding.function_name, exc, exc_info=True)
+            raise
+
         if run_id:
             with Session(get_engine()) as session:
                 record_node_execution(

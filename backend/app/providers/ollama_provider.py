@@ -44,6 +44,8 @@ class OllamaProvider:
             rounds = 0
             while tools and getattr(response, "tool_calls", None):
                 rounds += 1
+                tool_calls = response.tool_calls
+                logger.info("[OLLAMA TOOL LOOP] Round %d/%d: Model requested tool calls: %s", rounds, MAX_TOOL_ROUNDS, tool_calls)
                 if rounds > MAX_TOOL_ROUNDS:
                     msg = (
                         f"Model requested more than {MAX_TOOL_ROUNDS} tool-calling rounds "
@@ -56,10 +58,18 @@ class OllamaProvider:
                     tool = next((t for t in tools if t.name == call["name"]), None)
                     if tool is None:
                         tool_result = f"Error: no tool named '{call['name']}' is available"
+                        logger.warning("[OLLAMA TOOL CALL ERROR] Tool '%s' requested but not bound", call["name"])
                     else:
-                        tool_result = await tool.ainvoke(call["args"])
+                        logger.info("[OLLAMA TOOL INVOKING] Tool '%s' with args: %s", call["name"], call["args"])
+                        try:
+                            tool_result = await tool.ainvoke(call["args"])
+                            logger.info("[OLLAMA TOOL RESULT SUCCESS] Tool '%s' returned: %s", call["name"], repr(str(tool_result)[:150]))
+                        except Exception as exc:
+                            logger.error("[OLLAMA TOOL RESULT FAILURE] Tool '%s' raised exception: %s", call["name"], exc, exc_info=True)
+                            raise
                     messages.append(ToolMessage(content=str(tool_result), tool_call_id=call["id"]))
                 async with OLLAMA_SEMAPHORE:
+                    logger.info("[OLLAMA TOOL RE-INVOKE] Sending tool execution results back to model...")
                     response = await chat.ainvoke(messages)
 
             content_str = str(response.content)
