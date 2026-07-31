@@ -33,13 +33,16 @@ class OllamaProvider:
     async def generate(self, *, model: str, prompt: str, tools: list | None = None) -> str:
         logger.info("OllamaProvider.generate: model=%s, base_url=%s, prompt_len=%d, tools_count=%d", model, self.base_url, len(prompt), len(tools) if tools else 0)
         try:
-            chat = ChatOllama(model=model, base_url=self.base_url)
+            # stream=False prevents httpx chunked-stream stalls when local Ollama buffers tokens
+            chat = ChatOllama(model=model, base_url=self.base_url, stream=False)
             if tools:
                 chat = chat.bind_tools(tools)
 
             messages = [HumanMessage(content=prompt)]
+            logger.info("OllamaProvider: Sending initial prompt to ChatOllama (awaiting response)...")
             async with OLLAMA_SEMAPHORE:
                 response = await chat.ainvoke(messages)
+            logger.info("OllamaProvider: Initial response received from ChatOllama (has_tool_calls=%s)", bool(getattr(response, "tool_calls", None)))
 
             rounds = 0
             while tools and getattr(response, "tool_calls", None):
