@@ -109,7 +109,10 @@ async def execute(node_id: str, config: dict, state: GraphState) -> dict:
     # the run.
     except Exception as exc:  # noqa: BLE001
         logger.error("LLM node '%s' failed: %s", node_id, exc, exc_info=True)
-        error_msg = str(exc) if str(exc).strip() else f"{type(exc).__name__}: Execution failed"
+        if isinstance(exc, (asyncio.TimeoutError, TimeoutError)):
+            error_msg = f"LLM execution timed out after {cfg.timeout_seconds} seconds"
+        else:
+            error_msg = str(exc) if str(exc).strip() else f"{type(exc).__name__}: Execution failed"
         error = {"error": error_msg}
         return {
             "node_outputs": {node_id: error, "__latest__": error},
