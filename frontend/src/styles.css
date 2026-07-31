@@ -32,12 +32,42 @@ body {
   color: crimson;
   margin: 4px 16px;
 }
+/* React Flow's own base stylesheet gives its 4 built-in node type names
+   (input/default/output/group) a default 1px border via the
+   .react-flow__node-{type} class it auto-generates from each node's `type`
+   string. Our own node types happen to include one named "input" too
+   (contracts/graph-schema.md's node type naming), which collides with
+   React Flow's built-in "input" styling — the Input node was getting BOTH
+   that default border AND .ng-node's own border, stacked as a visible
+   double outline. Strip React Flow's default border for all 4 of its
+   built-in names so only .ng-node's own border ever shows. */
+.react-flow__node-input,
+.react-flow__node-default,
+.react-flow__node-output,
+.react-flow__node-group {
+  border: none;
+}
+
 .ng-node {
   border: 1px solid #999;
   border-radius: 6px;
   padding: 6px;
   background: white;
   width: 160px;
+}
+/* React Flow puts a `selected` class on the .react-flow__node wrapper (the
+   .ng-node div is nested inside it) when a node is selected — but neither
+   React Flow's own base styles nor .ng-node itself gave that any visible
+   treatment, so a selected node looked identical to an unselected one and
+   it was easy to delete the wrong thing. Same idea for edges below. */
+.react-flow__node.selected .ng-node {
+  border-color: #2563eb;
+  border-width: 2px;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.25);
+}
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: #2563eb;
+  stroke-width: 2.5;
 }
 .ng-node-title {
   font-weight: 600;
@@ -59,6 +89,12 @@ body {
 .ng-node textarea {
   resize: vertical;
   min-height: 32px;
+}
+.ng-node-hint {
+  font-size: 10px;
+  color: #888;
+  margin-top: 2px;
+  line-height: 1.3;
 }
 .ng-node-ports {
   display: flex;
@@ -136,6 +172,95 @@ body {
   flex: 1;
   padding: 8px;
 }
+.ng-saved-toast {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #2a7a2a;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+}
+
+.ng-code-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+.ng-code-modal {
+  background: white;
+  width: min(760px, 92%);
+  /* A definite height (not just max-height) is required here: the two
+     stacked sections below use flex: 1 1 0 to split the available space,
+     and flex-basis: 0 children only grow into a *definite* ancestor size —
+     max-height alone left them with nothing to grow into, so both
+     sections silently collapsed to 0px (only the non-flex header text
+     was visible; "just heading and nothing underneath"). */
+  height: 80vh;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+.ng-code-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid #eee;
+  gap: 8px;
+}
+.ng-code-sections {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.ng-code-section {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-top: 1px solid #eee;
+}
+.ng-code-section:first-child {
+  border-top: none;
+}
+.ng-code-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: #fafafa;
+  font-size: 12px;
+  font-weight: 600;
+  border-bottom: 1px solid #eee;
+}
+.ng-code-section-header button {
+  font-weight: normal;
+}
+.ng-code-pre {
+  flex: 1;
+  overflow: auto;
+  margin: 0;
+  padding: 12px;
+  font-size: 11px;
+  font-family: ui-monospace, monospace;
+  background: #f7f7f7;
+  white-space: pre;
+}
+
 .ng-workflow-list ul {
   list-style: none;
   padding: 0 16px;
@@ -207,3 +332,228 @@ body {
   text-align: left;
   padding: 8px 10px;
 }
+
+.ng-logs-sidecar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  width: 320px;
+  background: white;
+  border-left: 1px solid #ddd;
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition:
+    transform 0.18s ease-out,
+    right 0.18s ease-out;
+  z-index: 90;
+}
+.ng-logs-sidecar-open {
+  transform: translateX(0);
+}
+/* Slides left of the chat sidecar instead of stacking under it when both
+   are open at once — otherwise Logs would render hidden behind Chat. */
+.ng-logs-sidecar-pushed {
+  right: 340px;
+}
+.ng-logs-list {
+  padding: 8px 12px;
+  overflow: auto;
+  flex: 1;
+}
+.ng-logs-entry {
+  border: 1px solid #eee;
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.ng-logs-entry-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.ng-logs-node {
+  font-weight: 600;
+}
+.ng-logs-port {
+  color: #2a7a2a;
+}
+.ng-logs-entry-sub {
+  color: #888;
+  font-size: 10px;
+  margin-top: 2px;
+}
+.ng-logs-io {
+  margin: 6px 0 0;
+  padding: 6px;
+  background: #f7f7f7;
+  font-size: 10px;
+  font-family: ui-monospace, monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 200px;
+  overflow: auto;
+}
+
+/* ---- Credential Manager Modal ---- */
+.ng-cred-modal {
+  background: white;
+  width: min(500px, 92%);
+  /* Use a definite height (not just max-height) so flex children can grow
+     into it — see the same note on .ng-code-modal for details. */
+  height: min(600px, 85vh);
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+.ng-cred-toast {
+  background: #2a7a2a;
+  color: white;
+  padding: 8px 16px;
+  font-size: 13px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.ng-cred-list {
+  flex: 1 1 0;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 4px 16px;
+}
+.ng-cred-empty {
+  color: #888;
+  font-size: 13px;
+  padding: 16px 0;
+  margin: 0;
+}
+.ng-cred-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid #f2f2f2;
+}
+.ng-cred-row:last-child {
+  border-bottom: none;
+}
+.ng-cred-name {
+  font-weight: 600;
+  font-size: 13px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ng-cred-date {
+  font-size: 11px;
+  color: #888;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.ng-cred-delete {
+  font-size: 12px;
+  color: crimson;
+  border: 1px solid crimson;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  padding: 3px 8px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.ng-cred-delete:hover:not(:disabled) {
+  background: crimson;
+  color: white;
+}
+.ng-cred-delete:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.ng-cred-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border-top: 1px solid #eee;
+  flex-shrink: 0;
+  background: #fafafa;
+}
+.ng-cred-form-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #444;
+}
+.ng-cred-form label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #555;
+  margin-bottom: 3px;
+}
+.ng-cred-form input[type="text"],
+.ng-cred-form input[type="password"] {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  font-size: 13px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+}
+.ng-cred-form input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.18);
+}
+.ng-cred-value-row {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+}
+.ng-cred-value-row input {
+  flex: 1;
+}
+.ng-cred-toggle {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+  padding: 0 10px;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.ng-cred-toggle:hover {
+  background: #f0f0f0;
+}
+.ng-cred-error {
+  color: crimson;
+  font-size: 12px;
+  margin: 0;
+  line-height: 1.4;
+}
+.ng-cred-submit {
+  align-self: flex-end;
+  padding: 7px 16px;
+  font-size: 13px;
+  background: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.ng-cred-submit:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+.ng-cred-submit:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+

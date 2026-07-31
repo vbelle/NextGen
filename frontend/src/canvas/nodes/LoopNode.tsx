@@ -33,10 +33,12 @@ export function LoopNode(props: NodeProps) {
           })
         }
       />
-      <p style={{ fontSize: 11, color: "#666", margin: "4px 0 0" }}>
-        Wire "body" to that node; wire the body's last node back to this Loop's
-        id. Wire "done" onward once every item is processed.
-      </p>
+      <div className="ng-node-hint">
+        {"{{previous}}"} = the node connected above · {"{{name}}"} = a Variable
+        node's value. Wire "body" to the first body node; wire the body's last
+        node back to this Loop's id. Wire "done" onward once every item is
+        processed.
+      </div>
       <div className="ng-node-ports">
         <span className="ng-port-label">done</span>
         <span className="ng-port-label">body</span>

@@ -37,7 +37,54 @@ def test_word_count_counts_words():
 
 def test_list_tool_implementations_includes_builtins():
     refs = tool_registry.list_tool_implementations()
-    assert {"calculator", "current_datetime", "word_count"} <= set(refs)
+    assert {"calculator", "current_datetime", "word_count", "get_weather"} <= set(refs)
+
+
+class _FakeResponse:
+    def __init__(self, payload):
+        self._payload = payload
+
+    def raise_for_status(self):
+        pass
+
+    def json(self):
+        return self._payload
+
+
+def test_get_weather_returns_condition_and_temperature(monkeypatch):
+    def fake_get(url, params=None, timeout=None):
+        if "geocoding" in url:
+            return _FakeResponse(
+                {
+                    "results": [
+                        {
+                            "name": "London",
+                            "country": "United Kingdom",
+                            "latitude": 51.5,
+                            "longitude": -0.12,
+                        }
+                    ]
+                }
+            )
+        return _FakeResponse(
+            {"current_weather": {"temperature": 12.3, "windspeed": 5.4, "weathercode": 3}}
+        )
+
+    monkeypatch.setattr(tool_registry.httpx, "get", fake_get)
+    result = tool_registry.get_weather("London")
+    assert "London" in result
+    assert "overcast" in result
+    assert "12.3" in result
+
+
+def test_get_weather_unknown_city_returns_friendly_message(monkeypatch):
+    monkeypatch.setattr(
+        tool_registry.httpx,
+        "get",
+        lambda url, params=None, timeout=None: _FakeResponse({"results": []}),
+    )
+    result = tool_registry.get_weather("Nowhereville")
+    assert "Could not find" in result
 
 
 def test_get_tool_implementation_unknown_ref_raises():

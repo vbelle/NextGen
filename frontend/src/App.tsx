@@ -3,6 +3,8 @@ import { Login } from "./auth/Login";
 import { WorkflowList } from "./workflows/WorkflowList";
 import { Canvas } from "./canvas/Canvas";
 import { ChatSidecar } from "./chat/ChatSidecar";
+import { LogsSidecar } from "./chat/LogsSidecar";
+import { CredentialManager } from "./credentials/CredentialManager";
 import { api, ApiError, type WorkflowDetail } from "./api/client";
 
 type View = { name: "list" } | { name: "builder"; workflowId?: string };
@@ -14,6 +16,9 @@ export function App() {
     WorkflowDetail | undefined
   >(undefined);
   const [chatOpen, setChatOpen] = useState(false);
+  const [logsOpen, setLogsOpen] = useState(false);
+  const [credentialsOpen, setCredentialsOpen] = useState(false);
+  const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const [autoStartWorkflow, setAutoStartWorkflow] = useState<string | null>(
     null,
   );
@@ -51,6 +56,10 @@ export function App() {
         <button onClick={() => setChatOpen((v) => !v)}>
           {chatOpen ? "Close chat" : "Chat"}
         </button>
+        <button onClick={() => setLogsOpen((v) => !v)}>
+          {logsOpen ? "Close logs" : "Logs"}
+        </button>
+        <button onClick={() => setCredentialsOpen(true)}>Credentials</button>
       </nav>
       <main className="ng-main">
         {view.name === "list" && (
@@ -71,7 +80,21 @@ export function App() {
             workflowId={view.workflowId}
             initialGraph={workflowDetail?.graph_json ?? undefined}
             activeVersionId={workflowDetail?.active_version_id ?? null}
-            onSaved={() => setView({ name: "list" })}
+            onSaved={(savedWorkflowId) => {
+              // Only re-point the view (which reloads workflowDetail and,
+              // via Canvas's `key`, remounts the builder) when the id
+              // actually changed — i.e. this was a brand-new workflow's
+              // first save. Resaving an already-open workflow shouldn't
+              // reload/remount anything, so the "Saved" toast and version
+              // history refresh Canvas already handles locally aren't cut
+              // short.
+              if (
+                view.name === "builder" &&
+                view.workflowId !== savedWorkflowId
+              ) {
+                setView({ name: "builder", workflowId: savedWorkflowId });
+              }
+            }}
             onReverted={() =>
               view.workflowId && reloadWorkflowDetail(view.workflowId)
             }
@@ -83,6 +106,17 @@ export function App() {
         onClose={() => setChatOpen(false)}
         autoStartWorkflow={autoStartWorkflow}
         onAutoStartHandled={() => setAutoStartWorkflow(null)}
+        onRunIdChange={setActiveRunId}
+      />
+      <LogsSidecar
+        open={logsOpen}
+        onClose={() => setLogsOpen(false)}
+        runId={activeRunId}
+        pushLeft={chatOpen}
+      />
+      <CredentialManager
+        open={credentialsOpen}
+        onClose={() => setCredentialsOpen(false)}
       />
     </div>
   );

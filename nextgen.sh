@@ -10,18 +10,20 @@ usage() {
 Usage: ./nextgen.sh <command>
 
 Commands:
-  start      Start the app (builds images first time only, containers stay running in background)
-  stop       Stop the app, keep containers and volumes (fast resume with `start`)
-  restart    Restart the app without rebuilding
-  rebuild    Rebuild images from scratch and start (use after pulling code changes)
-  down       Stop and remove containers (data volumes are kept — use `down -v` manually to wipe them)
-  logs       Follow the app container's logs (Ctrl-C to stop watching)
-  status     Show container status
-  help       Show this help
+  start          Start the app (builds images first time only, containers stay running in background)
+  stop           Stop the app, keep containers and volumes (fast resume with `start`)
+  restart        Restart the app without rebuilding
+  rebuild        Rebuild images from scratch and start (use after pulling code changes)
+  down           Stop and remove containers (data volumes are kept — use `down -v` manually to wipe them)
+  logs           Follow the app container's logs (Ctrl-C to stop watching)
+  status         Show container status
+  pull <model>   Download an Ollama model into the bundled ollama container (e.g. `qwen2.5`), so it's usable in an LLM node's `model` field. Ollama does NOT auto-download a model just because you typed its name into the canvas — it must be pulled first, same as running `ollama pull` would on a normal host install.
+  help           Show this help
 
 Examples:
   ./nextgen.sh start
   ./nextgen.sh rebuild
+  ./nextgen.sh pull qwen2.5
   ./nextgen.sh logs
   ./nextgen.sh stop
 EOF
@@ -52,6 +54,15 @@ case "$cmd" in
     ;;
   status)
     docker compose ps
+    ;;
+  pull)
+    model="${2:-}"
+    if [ -z "$model" ]; then
+      echo "Usage: ./nextgen.sh pull <model>   (e.g. ./nextgen.sh pull qwen2.5)" >&2
+      exit 1
+    fi
+    docker compose exec ollama ollama pull "$model"
+    echo "Pulled '$model' — it's now usable in an LLM node's model field."
     ;;
   help|-h|--help)
     usage

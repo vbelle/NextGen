@@ -19,9 +19,11 @@ from __future__ import annotations
 
 import ast
 import operator
+import os
 from collections.abc import Callable
 from datetime import datetime, timezone
 
+import httpx
 from pydantic import BaseModel, Field
 
 
@@ -35,6 +37,82 @@ class DatetimeArgs(BaseModel):
 
 class WordCountArgs(BaseModel):
     text: str = Field(description="The text to count words in")
+
+
+class WeatherArgs(BaseModel):
+    city: str = Field(description="City name, e.g. 'London' or 'San Francisco'")
+
+
+class GoogleSearchArgs(BaseModel):
+    query: str = Field(description="The search query to look up on Google")
+    num_results: int = Field(
+        default=5,
+        ge=1,
+        le=10,
+        description="Number of organic results to return (1–10, default 5)",
+    )
+
+
+# Open-Meteo, not a weather.com/OpenWeatherMap-style API: no API key or signup
+# required (a Tool implementation here has no credential_id field to plug one
+# into anyway — that's the API node's job, per this module's docstring), and
+# both of its endpoints used below are free with no rate-limit key. WMO
+# weather codes per https://open-meteo.com/en/docs — condensed to the ones
+# actually likely to come back for a current-conditions lookup.
+_WMO_CODES: dict[int, str] = {
+    0: "clear sky",
+    1: "mainly clear",
+    2: "partly cloudy",
+    3: "overcast",
+    45: "fog",
+    48: "depositing rime fog",
+    51: "light drizzle",
+    53: "moderate drizzle",
+    55: "dense drizzle",
+    61: "slight rain",
+    63: "moderate rain",
+    65: "heavy rain",
+    71: "slight snow fall",
+    73: "moderate snow fall",
+    75: "heavy snow fall",
+    80: "slight rain showers",
+    81: "moderate rain showers",
+    82: "violent rain showers",
+    95: "thunderstorm",
+    96: "thunderstorm with slight hail",
+    99: "thunderstorm with heavy hail",
+}
+
+
+def get_weather(city: str) -> str:
+    # Open-Meteo has no built-in city-name search on the forecast endpoint
+    # itself, so this is two calls: geocode the city to lat/lon, then fetch
+    # current conditions for that point.
+    geo = httpx.get(
+        "https://geocoding-api.open-meteo.com/v1/search",
+        params={"name": city, "count": 1},
+        timeout=10,
+    )
+    geo.raise_for_status()
+    results = geo.json().get("results")
+    if not results:
+        return f"Could not find a location named '{city}'."
+    place = results[0]
+    lat, lon = place["latitude"], place["longitude"]
+
+    forecast = httpx.get(
+        "https://api.open-meteo.com/v1/forecast",
+        params={"latitude": lat, "longitude": lon, "current_weather": True},
+        timeout=10,
+    )
+    forecast.raise_for_status()
+    current = forecast.json().get("current_weather", {})
+    condition = _WMO_CODES.get(current.get("weathercode"), "unknown conditions")
+    resolved_name = ", ".join(part for part in [place.get("name"), place.get("country")] if part)
+    return (
+        f"{resolved_name}: {condition}, {current.get('temperature')}°C, "
+        f"wind {current.get('windspeed')} km/h"
+    )
 
 
 _ALLOWED_BIN_OPS: dict[type, Callable] = {
@@ -80,6 +158,45 @@ def word_count(text: str) -> str:
     return str(len(text.split()))
 
 
+def google_search(query: str, num_results: int = 5) -> str:
+    """Search Google via SerpAPI and return the top organic results as plain text.
+
+    Requires SERPAPI_KEY in the environment (set it in .env — get a free key
+    at https://serpapi.com). Never put the key directly in a workflow or tool
+    config; read it here from the environment so it stays out of graph JSON.
+    """
+    api_key = os.environ.get("SERPAPI_KEY", "").strip()
+    if not api_key:
+        raise ValueError(
+            "SERPAPI_KEY environment variable is not set. "
+            "Get a free API key at https://serpapi.com and add it to your .env file, "
+            "then rebuild the container."
+        )
+    response = httpx.get(
+        "https://serpapi.com/search.json",
+        params={"q": query, "api_key": api_key, "engine": "google", "num": num_results},
+        timeout=15,
+    )
+    response.raise_for_status()
+    data = response.json()
+
+    # SerpAPI surfaces a top-level error field on bad keys / quota exceeded.
+    if "error" in data:
+        raise ValueError(f"SerpAPI error: {data['error']}")
+
+    results = data.get("organic_results", [])
+    if not results:
+        return f"No results found for '{query}'."
+
+    parts: list[str] = []
+    for i, r in enumerate(results[:num_results], 1):
+        title = r.get("title", "(no title)")
+        snippet = r.get("snippet", "")
+        link = r.get("link", "")
+        parts.append(f"{i}. {title}\n   {snippet}\n   {link}")
+    return "\n\n".join(parts)
+
+
 class ToolImplementation:
     def __init__(self, args_schema: type[BaseModel], func: Callable[..., str]):
         self.args_schema = args_schema
@@ -90,6 +207,8 @@ _REGISTRY: dict[str, ToolImplementation] = {
     "calculator": ToolImplementation(CalculatorArgs, calculator),
     "current_datetime": ToolImplementation(DatetimeArgs, current_datetime),
     "word_count": ToolImplementation(WordCountArgs, word_count),
+    "get_weather": ToolImplementation(WeatherArgs, get_weather),
+    "google_search": ToolImplementation(GoogleSearchArgs, google_search),
 }
 
 

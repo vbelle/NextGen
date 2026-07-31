@@ -320,12 +320,12 @@ description: "Task list for Agentic Workflow Builder (NextGen v1)"
 
 ### Tests for User Story 13
 
-- [ ] T080 [P] [US13] Integration test for a Merge node combining two parallel success branches in `backend/tests/integration/test_merge_node.py`
+- [x] T080 [P] [US13] Integration test for a Merge node combining two parallel success branches in `backend/tests/integration/test_merge_node.py`
 
 ### Implementation for User Story 13
 
-- [ ] T081 [US13] Implement Merge node config schema + execution function (`combine-object`/`concat-list` strategies, waits for all incoming success branches per LangGraph's native multi-predecessor join behavior) in `backend/app/graph/nodes/merge_node.py` (depends on T021)
-- [ ] T082 [P] [US13] Implement Merge canvas node component in `frontend/src/canvas/nodes/MergeNode.tsx` (depends on T028)
+- [x] T081 [US13] Implement Merge node config schema + execution function (`combine-object`/`concat-list` strategies, waits for all incoming success branches per LangGraph's native multi-predecessor join behavior) in `backend/app/graph/nodes/merge_node.py` (depends on T021)
+- [x] T082 [P] [US13] Implement Merge canvas node component in `frontend/src/canvas/nodes/MergeNode.tsx` (depends on T028)
 
 **Checkpoint**: All 13 node types are implemented, connectable, and independently functional (SC-003).
 

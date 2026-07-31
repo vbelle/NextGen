@@ -26,9 +26,9 @@ requires_py311 = pytest.mark.skipif(
     reason="LangGraph interrupt() requires Python 3.11+ in async contexts",
 )
 
-from app.db import init_db  # noqa: E402 — must follow the env var defaults above
-from app.main import app  # noqa: E402
-from app.providers.ollama_provider import OllamaProvider  # noqa: E402
+from app.db import init_db
+from app.main import app
+from app.providers.ollama_provider import OllamaProvider
 
 GRAPH = {
     "nodes": [
@@ -96,6 +96,11 @@ def test_core_loop_end_to_end(client):
 
         status_msg = ws.receive_json()
         assert status_msg["type"] == "status"
+        # 2026-07-30: so the chat transcript can show which saved version
+        # actually ran, not just that a run started (see contracts/
+        # chat-websocket.md's "status" entry).
+        assert status_msg["payload"]["workflow_name"] == "hello-test"
+        assert status_msg["payload"]["version_number"] == 1
 
         input_request = ws.receive_json()
         assert input_request["type"] == "input_request"

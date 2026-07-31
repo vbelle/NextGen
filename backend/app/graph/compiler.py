@@ -82,6 +82,16 @@ def _resolve_bound_tools(llm_node_id: str, nodes: dict[str, dict], edges: list[d
     return bound
 
 
+def _resolve_merge_inputs(merge_node_id: str, edges: list[dict]) -> list[str]:
+    """User Story 13: which upstream node_ids feed this Merge node, resolved
+    here at compile time (not guessed at runtime from node_outputs) so
+    merge_node.py can read each branch's own deterministic output instead of
+    racing on "__latest__" when the branches ran concurrently — see that
+    module's docstring. Order follows the edges as saved (canvas draw order),
+    same as _resolve_bound_tools above does for tool bindings."""
+    return [edge["source"] for edge in edges if edge.get("target") == merge_node_id]
+
+
 def _make_router(node_id: str):
     def _router(state: GraphState) -> str:
         port = state.get("last_output_port", {}).get(node_id, "default")
@@ -112,6 +122,8 @@ def compile_graph(graph_json: dict[str, Any]):
         raw_config = dict(node.get("config", {}))
         if node_type == "llm":
             raw_config["bound_tools"] = _resolve_bound_tools(node_id, nodes, edges)
+        elif node_type == "merge":
+            raw_config["input_node_ids"] = _resolve_merge_inputs(node_id, edges)
         config = definition.config_model(**raw_config).model_dump()
         builder.add_node(node_id, _make_node_fn(node_id, node_type, config, definition.executor))
 

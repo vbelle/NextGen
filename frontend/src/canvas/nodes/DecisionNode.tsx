@@ -34,6 +34,10 @@ export function DecisionNode(props: NodeProps) {
           data.onConfigChange({ ...data.config, left: e.target.value })
         }
       />
+      <div className="ng-node-hint">
+        {"{{previous}}"} = the node connected above · {"{{name}}"} = a Variable
+        node's value
+      </div>
       <select
         value={data.config.operator}
         onChange={(e) =>

@@ -37,6 +37,27 @@ export interface GraphJson {
   edges: GraphEdge[];
 }
 
+export interface RunDetail {
+  id: string;
+  status: string;
+  workflow_version_id: string;
+  pending_prompt: unknown;
+  started_at: string;
+  ended_at: string | null;
+}
+
+export interface NodeExecutionEntry {
+  id: string;
+  node_id: string;
+  node_type: string;
+  output_port: string;
+  input: unknown;
+  output: unknown;
+  attempt_count: number | null;
+  started_at: string;
+  ended_at: string | null;
+}
+
 export interface ApiErrorBody {
   detail:
     string | { detail: string; errors?: { field: string; issue: string }[] };
@@ -106,20 +127,32 @@ export const api = {
       { method: "POST" },
     ),
 
-  getRun: (runId: string) =>
-    request<Record<string, unknown>>(`/api/runs/${runId}`),
+  getRun: (runId: string) => request<RunDetail>(`/api/runs/${runId}`),
   getRunExecutions: (runId: string) =>
-    request<Record<string, unknown>[]>(`/api/runs/${runId}/executions`),
+    request<NodeExecutionEntry[]>(`/api/runs/${runId}/executions`),
 
   listCredentials: () =>
     request<{ id: string; name: string; created_at: string }[]>(
       "/api/credentials",
     ),
+  createCredential: (name: string, value: string) =>
+    request<{ id: string; name: string; created_at: string }>("/api/credentials", {
+      method: "POST",
+      body: JSON.stringify({ name, value }),
+    }),
+  deleteCredential: (id: string) =>
+    request<void>(`/api/credentials/${id}`, { method: "DELETE" }),
 
   listVectorStores: () => request<{ name: string }[]>("/api/vector-stores"),
 
   listToolImplementations: () =>
     request<{ implementation_ref: string }[]>("/api/tools"),
+
+  codegenLangGraph: (graph_json: GraphJson) =>
+    request<{ code: string }>("/api/codegen/langgraph", {
+      method: "POST",
+      body: JSON.stringify({ graph_json }),
+    }),
 };
 
 // --- Chat WebSocket (contracts/chat-websocket.md) ---
@@ -132,7 +165,15 @@ export type ChatServerMessage =
         messages: { role: string; content: string; run_id: string | null }[];
       };
     }
-  | { type: "status"; payload: { run_id: string; status: string } }
+  | {
+      type: "status";
+      payload: {
+        run_id: string;
+        status: string;
+        workflow_name: string;
+        version_number: number;
+      };
+    }
   | {
       type: "input_request";
       payload: { run_id: string; prompt: string; node_id: string };

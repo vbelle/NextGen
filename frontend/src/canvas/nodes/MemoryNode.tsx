@@ -48,6 +48,10 @@ export function MemoryNode(props: NodeProps) {
         }
         rows={2}
       />
+      <div className="ng-node-hint">
+        {"{{previous}}"} = the node connected above · {"{{name}}"} = a Variable
+        node's value
+      </div>
       <input
         type="number"
         min={1}

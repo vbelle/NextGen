@@ -133,6 +133,11 @@ def validate_graph(graph_json: dict) -> ValidationResult:
                         edge_id=edge["id"],
                     )
 
+        # Rule 4d: a Merge node with no incoming edges has nothing to
+        # combine — same spirit as Tool's "not wired to anything" check.
+        if ntype == "merge" and not incoming.get(node_id):
+            result.add("Merge node has no incoming edges to combine", node_id=node_id)
+
     # Rule 5: Variable node names unique within this graph.
     seen_var_names: dict[str, str] = {}
     for node_id, node in nodes.items():

@@ -8,7 +8,7 @@ import json
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from sqlmodel import Session, select
 
-from app.auth import verify_session_token, SESSION_COOKIE
+from app.auth import SESSION_COOKIE, verify_session_token
 from app.db import get_engine
 from app.models.chat import ChatMessage, ChatRole, ChatSession
 from app.models.run import Run, RunStatus
@@ -147,7 +147,16 @@ async def chat_websocket(websocket: WebSocket) -> None:
                         session, chat_session.id, ChatRole.user, f"start {name}", run_id
                     )
 
-                await _send(websocket, "status", {"run_id": run_id, "status": "running"})
+                await _send(
+                    websocket,
+                    "status",
+                    {
+                        "run_id": run_id,
+                        "status": "running",
+                        "workflow_name": name,
+                        "version_number": version_number,
+                    },
+                )
                 initial_state = {
                     "run_id": run_id,
                     "workflow_id": workflow_id,

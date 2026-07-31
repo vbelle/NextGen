@@ -25,6 +25,10 @@ export function CodeNode(props: NodeProps) {
         rows={5}
         style={{ fontFamily: "monospace" }}
       />
+      <div className="ng-node-hint">
+        `previous` = the node connected above · `variables` = a dict of every
+        Variable node's value · set `result = ...` to produce this node's output
+      </div>
       <input
         type="number"
         min={1}

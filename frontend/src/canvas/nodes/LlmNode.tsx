@@ -33,6 +33,10 @@ export function LlmNode(props: NodeProps) {
         }
         rows={3}
       />
+      <div className="ng-node-hint">
+        {"{{previous}}"} = the node connected above · {"{{name}}"} = a Variable
+        node's value
+      </div>
       <div className="ng-node-ports">
         <span className="ng-port-label">success</span>
         <span className="ng-port-label">failure</span>

@@ -20,6 +20,10 @@ export function InputNode(props: NodeProps) {
         }
         rows={1}
       />
+      <div className="ng-node-hint">
+        The chat user's answer becomes {"{{previous}}"} in the next connected
+        node.
+      </div>
       <Handle type="source" position={Position.Bottom} id="default" />
     </div>
   );

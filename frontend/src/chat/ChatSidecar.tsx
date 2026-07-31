@@ -11,6 +11,10 @@ export interface ChatSidecarProps {
    * specific workflow and switch straight to the transcript. */
   autoStartWorkflow?: string | null;
   onAutoStartHandled?: () => void;
+  /** Fired whenever the run this chat session is currently on changes, so a
+   * separate Logs sidecar (which doesn't own its own WebSocket connection)
+   * knows which run to poll. */
+  onRunIdChange?: (runId: string | null) => void;
 }
 
 export function ChatSidecar({
@@ -18,9 +22,22 @@ export function ChatSidecar({
   onClose,
   autoStartWorkflow,
   onAutoStartHandled,
+  onRunIdChange,
 }: ChatSidecarProps) {
-  const { transcript, pendingInput, connected, startWorkflow, provideInput } =
-    useChatSocket();
+  const {
+    transcript,
+    pendingInput,
+    connected,
+    starting,
+    currentRunId,
+    startWorkflow,
+    provideInput,
+    clearTranscript,
+  } = useChatSocket();
+
+  useEffect(() => {
+    onRunIdChange?.(currentRunId);
+  }, [currentRunId, onRunIdChange]);
   const [mode, setMode] = useState<Mode>("picker");
   const [workflows, setWorkflows] = useState<WorkflowSummary[]>([]);
   const [draft, setDraft] = useState("");
@@ -55,6 +72,16 @@ export function ChatSidecar({
       startWorkflow(autoStartWorkflow);
       setMode("chat");
       onAutoStartHandled?.();
+    } else if (!autoStartWorkflow) {
+      // Bug fix: without this, autoStartedRef kept every workflow name it had
+      // ever auto-started for the sidecar's whole (now-permanent) lifetime.
+      // Clicking "Run" a second time on the same workflow left the guard
+      // above permanently false for that name — startWorkflow silently never
+      // fired again, so the sidecar just opened with nothing happening.
+      // Re-arm the guard as soon as the parent clears autoStartWorkflow
+      // (which it does immediately after this effect consumes it), so the
+      // same name can trigger a fresh run next time.
+      autoStartedRef.current = null;
     }
   }, [open, autoStartWorkflow, startWorkflow, onAutoStartHandled]);
 
@@ -87,6 +114,15 @@ export function ChatSidecar({
         <span className="ng-chat-status">
           {connected ? "connected" : "connecting…"}
         </span>
+        {mode === "chat" && transcript.length > 0 && (
+          <button
+            className="ng-chat-clear"
+            onClick={clearTranscript}
+            title="Clear this transcript (doesn't cancel a paused run)"
+          >
+            Clear
+          </button>
+        )}
         <button className="ng-chat-close" onClick={onClose} title="Close">
           ✕
         </button>
@@ -119,6 +155,9 @@ export function ChatSidecar({
                 {entry.content}
               </div>
             ))}
+            {starting && !pendingInput && (
+              <div className="ng-chat-pending">Starting the flow…</div>
+            )}
             {pendingInput && (
               <div className="ng-chat-pending">
                 {pendingInput.resumed

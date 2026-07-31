@@ -28,6 +28,13 @@ export function useChatSocket() {
   const [transcript, setTranscript] = useState<ChatTranscriptEntry[]>([]);
   const [pendingInput, setPendingInput] = useState<PendingInput | null>(null);
   const [connected, setConnected] = useState(false);
+  // True from the moment startWorkflow/provideInput is sent until the first
+  // reply of any kind comes back — gives the UI something to show during
+  // that gap instead of looking like nothing happened.
+  const [starting, setStarting] = useState(false);
+  // Most recent run this session has touched — lets a separate Logs sidecar
+  // know which run to poll without owning its own WebSocket connection.
+  const [currentRunId, setCurrentRunId] = useState<string | null>(null);
   // The server always sends "history" first on connect, then — only if a run
   // tied to this session is already paused — an "input_request" as the very
   // next message, before any live interaction. That ordering is what lets us
@@ -52,10 +59,21 @@ export function useChatSocket() {
         }
         case "status":
           justConnectedRef.current = false;
-          break; // "working…" indicator could hook in here later
+          setCurrentRunId(msg.payload.run_id);
+          setTranscript((t) => [
+            ...t,
+            {
+              role: "system",
+              content: `Running "${msg.payload.workflow_name}" — version ${msg.payload.version_number}`,
+              runId: msg.payload.run_id,
+            },
+          ]);
+          break;
         case "input_request": {
           const resumed = justConnectedRef.current;
           justConnectedRef.current = false;
+          setStarting(false);
+          setCurrentRunId(msg.payload.run_id);
           setPendingInput({
             runId: msg.payload.run_id,
             prompt: msg.payload.prompt,
@@ -73,6 +91,8 @@ export function useChatSocket() {
         }
         case "response":
           justConnectedRef.current = false;
+          setStarting(false);
+          setCurrentRunId(msg.payload.run_id);
           setPendingInput(null);
           setTranscript((t) => [
             ...t,
@@ -85,6 +105,8 @@ export function useChatSocket() {
           break;
         case "run_failed":
           justConnectedRef.current = false;
+          setStarting(false);
+          setCurrentRunId(msg.payload.run_id);
           setPendingInput(null);
           setTranscript((t) => [
             ...t,
@@ -97,6 +119,7 @@ export function useChatSocket() {
           break;
         case "workflow_not_found":
           justConnectedRef.current = false;
+          setStarting(false);
           setTranscript((t) => [
             ...t,
             {
@@ -116,6 +139,7 @@ export function useChatSocket() {
 
   const startWorkflow = useCallback((name: string) => {
     if (!wsRef.current) return;
+    setStarting(true);
     setTranscript((t) => [
       ...t,
       { role: "user", content: `start ${name}`, runId: null },
@@ -129,6 +153,7 @@ export function useChatSocket() {
   const provideInput = useCallback(
     (value: string) => {
       if (!wsRef.current || !pendingInput) return;
+      setStarting(true);
       setTranscript((t) => [
         ...t,
         { role: "user", content: value, runId: pendingInput.runId },
@@ -142,5 +167,24 @@ export function useChatSocket() {
     [pendingInput],
   );
 
-  return { transcript, pendingInput, connected, startWorkflow, provideInput };
+  // Clears only the visible transcript — it does not touch a run that's
+  // still genuinely paused server-side (pendingInput/currentRunId are left
+  // alone), so "clear" tidies the view without abandoning a flow you're
+  // mid-conversation with. If the server ever replays "history" again
+  // (e.g. a future reconnect), those messages would reappear; that's
+  // considered correct, not a bug — this is a view-only clear.
+  const clearTranscript = useCallback(() => {
+    setTranscript([]);
+  }, []);
+
+  return {
+    transcript,
+    pendingInput,
+    connected,
+    starting,
+    currentRunId,
+    startWorkflow,
+    provideInput,
+    clearTranscript,
+  };
 }

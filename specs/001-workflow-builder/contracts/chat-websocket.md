@@ -19,7 +19,7 @@
 - `{"type": "response", "payload": {"run_id": "uuid", "content": "..."}}` — a Response node fired (FR-009); `content` is whatever value reached it, rendered as the chat's answer.
 - `{"type": "run_failed", "payload": {"run_id": "uuid", "message": "string"}}` — a failure output reached a dead end (nothing recoverable wired to it) or an unrecoverable system error occurred; shown as a chat error message, not a silent drop.
 - `{"type": "workflow_not_found", "payload": {"name": "string"}}` — see `start_workflow` above.
-- `{"type": "status", "payload": {"run_id": "uuid", "status": "running"}}` — lightweight acknowledgment sent immediately on `start_workflow` (before any node has necessarily finished) so the UI can show "working..." within the ~500ms responsiveness goal (plan.md Performance Goals) even while, say, an LLM node is still generating.
+- `{"type": "status", "payload": {"run_id": "uuid", "status": "running", "workflow_name": "string", "version_number": 1}}` — lightweight acknowledgment sent immediately on `start_workflow` (before any node has necessarily finished) so the UI can show "working..." within the ~500ms responsiveness goal (plan.md Performance Goals) even while, say, an LLM node is still generating. `version_number` is the workflow's `active_version_id` at the moment this run started (2026-07-30: added so a builder testing changes can see, in the transcript itself, which saved version actually ran — since activating a new version mid-testing session could otherwise leave that ambiguous).
 
 ## Reconnection behavior
 

@@ -19,6 +19,10 @@ export function ResponseNode(props: NodeProps) {
         onChange={(e) => data.onConfigChange({ content: e.target.value })}
         rows={2}
       />
+      <div className="ng-node-hint">
+        {"{{previous}}"} = the node connected above · {"{{name}}"} = a Variable
+        node's value
+      </div>
       {/* Terminal node type — no source handle (contracts/graph-schema.md) */}
     </div>
   );

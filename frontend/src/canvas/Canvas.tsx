@@ -24,6 +24,7 @@ import { LoopNode } from "./nodes/LoopNode";
 import { MemoryNode } from "./nodes/MemoryNode";
 import { ToolNode } from "./nodes/ToolNode";
 import { SubworkflowNode } from "./nodes/SubworkflowNode";
+import { MergeNode } from "./nodes/MergeNode";
 import { VersionHistory } from "../workflows/VersionHistory";
 import { api, ApiError, type GraphJson } from "../api/client";
 
@@ -40,6 +41,7 @@ const nodeTypes = {
   memory: MemoryNode,
   tool: ToolNode,
   subworkflow: SubworkflowNode,
+  merge: MergeNode,
 };
 
 let idCounter = 0;
@@ -68,6 +70,7 @@ const DEFAULT_CONFIG: Record<string, Record<string, unknown>> = {
   memory: { vector_store_ref: "", query: "{{previous}}", top_k: 5 },
   tool: { function_name: "", description: "", implementation_ref: "" },
   subworkflow: { workflow_id: "", pinned_version_id: "" },
+  merge: { strategy: "combine-object" },
 };
 
 interface CanvasProps {
@@ -90,7 +93,16 @@ export function Canvas({
       id: n.id,
       type: n.type,
       position: n.position,
-      data: { name: n.name, config: n.config, onConfigChange: () => {} },
+      data: {
+        name: n.name,
+        config: n.config,
+        // Bug fix: this used to be a no-op, which meant every field on every
+        // node became silently uneditable as soon as you reopened a
+        // previously-saved workflow (only brand-new nodes added via the
+        // toolbar, wired up in addNode() below, ever got a real handler).
+        onConfigChange: (config: Record<string, unknown>) =>
+          updateNodeConfig(n.id, config),
+      },
     }));
   const toFlowEdges = (graph?: GraphJson): Edge[] =>
     (graph?.edges ?? []).map((e) => ({
@@ -109,6 +121,13 @@ export function Canvas({
   const [name, setName] = useState("");
   const [errors, setErrors] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [savedMessage, setSavedMessage] = useState(false);
+  const [versionRefreshKey, setVersionRefreshKey] = useState(0);
+  const [showCode, setShowCode] = useState(false);
+  const [copiedJson, setCopiedJson] = useState(false);
+  const [copiedLangGraph, setCopiedLangGraph] = useState(false);
+  const [langGraphCode, setLangGraphCode] = useState<string | null>(null);
+  const [langGraphLoading, setLangGraphLoading] = useState(false);
 
   const onConnect = useCallback(
     (connection: Connection) => setEdges((eds) => addEdge(connection, eds)),
@@ -139,6 +158,46 @@ export function Canvas({
     );
   }
 
+  // Click a node (or shift-click several) to select it, then either press
+  // Backspace/Delete or click this button. Cleans up any edges attached to
+  // whatever got deleted either way, so a removed node never leaves a
+  // dangling edge behind.
+  const onNodesDelete = useCallback(
+    (deleted: Node[]) => {
+      const deletedIds = new Set(deleted.map((n) => n.id));
+      setEdges((eds) =>
+        eds.filter(
+          (e) => !deletedIds.has(e.source) && !deletedIds.has(e.target),
+        ),
+      );
+    },
+    [setEdges],
+  );
+
+  // Bug fix: this used to only look at selected nodes, so clicking a lone
+  // edge (without either endpoint node also selected) and hitting this
+  // button silently did nothing — you had to select an edge and press
+  // Backspace instead, which React Flow already handles for free via
+  // onEdgesChange. Now the button covers both, matching Backspace/Delete.
+  function deleteSelected() {
+    const selectedNodeIds = new Set(
+      nodes.filter((n) => n.selected).map((n) => n.id),
+    );
+    const selectedEdgeIds = new Set(
+      edges.filter((e) => e.selected).map((e) => e.id),
+    );
+    if (selectedNodeIds.size === 0 && selectedEdgeIds.size === 0) return;
+    setNodes((nds) => nds.filter((n) => !selectedNodeIds.has(n.id)));
+    setEdges((eds) =>
+      eds.filter(
+        (e) =>
+          !selectedEdgeIds.has(e.id) &&
+          !selectedNodeIds.has(e.source) &&
+          !selectedNodeIds.has(e.target),
+      ),
+    );
+  }
+
   function toGraphJson(): GraphJson {
     return {
       nodes: nodes.map((n) => ({
@@ -157,6 +216,29 @@ export function Canvas({
     };
   }
 
+  function openCodeModal() {
+    setShowCode(true);
+    // Both sections show at once now (stacked in one pane), so fetch the
+    // LangGraph rendering right away instead of waiting for a tab click —
+    // JSON is already available synchronously from toGraphJson().
+    setLangGraphLoading(true);
+    api
+      .codegenLangGraph(toGraphJson())
+      .then((res) => setLangGraphCode(res.code))
+      .catch(() => setLangGraphCode("# Failed to generate LangGraph code."))
+      .finally(() => setLangGraphLoading(false));
+  }
+
+  function copyText(text: string, onDone: (copied: boolean) => void) {
+    navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        onDone(true);
+        setTimeout(() => onDone(false), 2000);
+      })
+      .catch(() => undefined);
+  }
+
   async function handleSave() {
     setSaving(true);
     setErrors([]);
@@ -173,6 +255,15 @@ export function Canvas({
         const created = await api.createWorkflow(name.trim(), graph_json);
         onSaved?.(created.id);
       }
+      // Stay on this page (onSaved above just lets the parent know the
+      // workflow's id, e.g. for version history) — show a transient
+      // confirmation instead of navigating away.
+      setSavedMessage(true);
+      setTimeout(() => setSavedMessage(false), 3000);
+      // VersionHistory only refetches when its workflowId prop changes, so
+      // remounting it here is what makes the just-saved version show up
+      // without needing to leave and come back to this page.
+      setVersionRefreshKey((k) => k + 1);
     } catch (err) {
       if (err instanceof ApiError && err.status === 422) {
         const detail = err.body as {
@@ -193,7 +284,14 @@ export function Canvas({
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        position: "relative",
+      }}
+    >
       <div className="ng-toolbar">
         <button onClick={() => addNode("input")}>+ Input</button>
         <button onClick={() => addNode("llm")}>+ LLM</button>
@@ -207,6 +305,13 @@ export function Canvas({
         <button onClick={() => addNode("memory")}>+ Memory</button>
         <button onClick={() => addNode("tool")}>+ Tool</button>
         <button onClick={() => addNode("subworkflow")}>+ Sub-workflow</button>
+        <button onClick={() => addNode("merge")}>+ Merge</button>
+        <button
+          onClick={deleteSelected}
+          title="Select a node or edge (click it, shift-click for more) then delete it — or press Backspace/Delete"
+        >
+          🗑 Delete selected
+        </button>
         {!workflowId && (
           <input
             value={name}
@@ -217,6 +322,7 @@ export function Canvas({
         <button onClick={handleSave} disabled={saving}>
           {saving ? "Saving…" : workflowId ? "Save new version" : "Save"}
         </button>
+        <button onClick={openCodeModal}>{"</>"} View code</button>
       </div>
       {errors.length > 0 && (
         <ul className="ng-errors">
@@ -232,8 +338,10 @@ export function Canvas({
             edges={edges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
+            onNodesDelete={onNodesDelete}
             onConnect={onConnect}
             nodeTypes={nodeTypes}
+            deleteKeyCode={["Backspace", "Delete"]}
             fitView
           >
             <Background />
@@ -242,12 +350,70 @@ export function Canvas({
         </div>
         {workflowId && (
           <VersionHistory
+            key={versionRefreshKey}
             workflowId={workflowId}
             activeVersionId={activeVersionId ?? null}
             onReverted={() => onReverted?.()}
           />
         )}
       </div>
+      {savedMessage && <div className="ng-saved-toast">✓ Saved</div>}
+      {showCode && (
+        <div
+          className="ng-code-overlay"
+          onClick={() => setShowCode(false)}
+          role="presentation"
+        >
+          <div
+            className="ng-code-modal"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-label="Generated code"
+          >
+            <div className="ng-code-modal-header">
+              <strong>Generated code</strong>
+              <button onClick={() => setShowCode(false)}>Close</button>
+            </div>
+            <div className="ng-code-sections">
+              <div className="ng-code-section">
+                <div className="ng-code-section-header">
+                  <span>Graph JSON</span>
+                  <button
+                    onClick={() =>
+                      copyText(
+                        JSON.stringify(toGraphJson(), null, 2),
+                        setCopiedJson,
+                      )
+                    }
+                  >
+                    {copiedJson ? "Copied!" : "Copy"}
+                  </button>
+                </div>
+                <pre className="ng-code-pre">
+                  {JSON.stringify(toGraphJson(), null, 2)}
+                </pre>
+              </div>
+              <div className="ng-code-section">
+                <div className="ng-code-section-header">
+                  <span>LangGraph code</span>
+                  <button
+                    onClick={() =>
+                      copyText(langGraphCode ?? "", setCopiedLangGraph)
+                    }
+                  >
+                    {copiedLangGraph ? "Copied!" : "Copy"}
+                  </button>
+                </div>
+                <pre className="ng-code-pre">
+                  {langGraphLoading
+                    ? "Generating…"
+                    : (langGraphCode ?? "Could not generate — try reopening.")}
+                </pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

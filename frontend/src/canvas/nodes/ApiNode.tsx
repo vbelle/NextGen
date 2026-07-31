@@ -73,6 +73,10 @@ export function ApiNode(props: NodeProps) {
           data.onConfigChange({ ...data.config, url: e.target.value })
         }
       />
+      <div className="ng-node-hint">
+        {"{{previous}}"} = the node connected above · {"{{name}}"} = a Variable
+        node's value
+      </div>
       <textarea
         value={headersText}
         placeholder={"Header: value\n(one per line)"}

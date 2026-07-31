@@ -11,6 +11,7 @@ from app.graph.nodes import (  # noqa: F401
     llm_node,
     loop_node,
     memory_node,
+    merge_node,
     response_node,
     retry_node,
     subworkflow_node,

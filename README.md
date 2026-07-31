@@ -66,15 +66,23 @@ From there:
 `./nextgen.sh` wraps the common `docker compose` commands:
 
 ```bash
-./nextgen.sh start      # start (builds images the first time)
-./nextgen.sh stop       # stop, keep containers/volumes
-./nextgen.sh restart    # restart without rebuilding
-./nextgen.sh rebuild    # rebuild images from scratch and start (after pulling code changes)
-./nextgen.sh down       # stop and remove containers (volumes kept)
-./nextgen.sh logs       # follow the app container's logs
-./nextgen.sh status     # show container status
-./nextgen.sh help       # list all commands
+./nextgen.sh start          # start (builds images the first time)
+./nextgen.sh stop           # stop, keep containers/volumes
+./nextgen.sh restart        # restart without rebuilding
+./nextgen.sh rebuild        # rebuild images from scratch and start (after pulling code changes)
+./nextgen.sh down           # stop and remove containers (volumes kept)
+./nextgen.sh logs           # follow the app container's logs
+./nextgen.sh status         # show container status
+./nextgen.sh pull qwen2.5   # download a model into the bundled ollama container
+./nextgen.sh help           # list all commands
 ```
+
+Typing a model name into an LLM node's `model` field doesn't download it —
+Ollama only ever uses models that have already been pulled. If Ollama is
+running as a container (the default, per `docker-compose.yml`) rather than
+installed on your host, `./nextgen.sh pull <model>` is the way to get a new
+one in (it's a thin wrapper around `docker compose exec ollama ollama pull
+<model>`).
 
 ## Configuration reference
 

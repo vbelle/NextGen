@@ -8,7 +8,7 @@ import os
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from app.api import auth_routes, credentials, runs, tools, vector_stores, workflows
+from app.api import auth_routes, codegen, credentials, runs, tools, vector_stores, workflows
 from app.auth import PasswordGateMiddleware
 from app.chat import websocket as chat_websocket
 from app.db import get_session, init_db
@@ -24,6 +24,7 @@ app.include_router(runs.router)
 app.include_router(credentials.router)
 app.include_router(vector_stores.router)
 app.include_router(tools.router)
+app.include_router(codegen.router)
 app.include_router(chat_websocket.router)
 
 
