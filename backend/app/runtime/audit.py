@@ -30,26 +30,26 @@ def record_node_execution(
     started_at: datetime,
     attempt_count: int | None = None,
 ) -> NodeExecution:
-    execution = NodeExecution(
-        run_id=run_id,
-        node_id=node_id,
-        node_type=node_type,
-        output_port=output_port,
-        input_json=json.dumps(input_data, default=str),
-        output_json=json.dumps(output_data, default=str),
-        attempt_count=attempt_count,
-        started_at=started_at,
-        ended_at=datetime.now(timezone.utc),
-    )
-    session.add(execution)
-    
     # Retry loop for transient SQLite database locks (WAL mode contention)
     max_retries = 5
     for attempt in range(max_retries):
+        execution = NodeExecution(
+            run_id=run_id,
+            node_id=node_id,
+            node_type=node_type,
+            output_port=output_port,
+            input_json=json.dumps(input_data, default=str),
+            output_json=json.dumps(output_data, default=str),
+            attempt_count=attempt_count,
+            started_at=started_at,
+            ended_at=datetime.now(timezone.utc),
+        )
+        session.add(execution)
         try:
             session.commit()
-            break
+            return execution
         except OperationalError as exc:
+            session.rollback()
             if "database is locked" in str(exc).lower() and attempt < max_retries - 1:
                 logger.warning("Database locked while committing audit log for node '%s', retrying (%d/%d)...", node_id, attempt + 1, max_retries)
                 time.sleep(0.2 * (attempt + 1))
