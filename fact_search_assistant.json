@@ -1,0 +1,81 @@
+{
+  "name": "fact_search_assistant",
+  "graph_json": {
+    "nodes": [
+      {
+        "id": "input-1",
+        "type": "input",
+        "name": "User Question",
+        "config": {
+          "prompt": "What factual question or current event topic would you like to search?",
+          "required": true
+        },
+        "position": {
+          "x": 100,
+          "y": 150
+        }
+      },
+      {
+        "id": "tool-1",
+        "type": "tool",
+        "name": "Google Search Tool",
+        "config": {
+          "function_name": "google_search",
+          "description": "Searches Google via SerpApi for real-time news, weather, and factual data.",
+          "implementation_ref": "google_search"
+        },
+        "position": {
+          "x": 100,
+          "y": 350
+        }
+      },
+      {
+        "id": "llm-1",
+        "type": "llm",
+        "name": "Search & Summarize LLM",
+        "config": {
+          "provider": "ollama",
+          "model": "llama3.2",
+          "prompt": "You are a factual research assistant. Use the google_search tool to look up current information for the following request before answering:\n\n{{previous}}",
+          "timeout_seconds": 180
+        },
+        "position": {
+          "x": 400,
+          "y": 150
+        }
+      },
+      {
+        "id": "response-1",
+        "type": "response",
+        "name": "Display Summary",
+        "config": {
+          "content": "{{previous}}"
+        },
+        "position": {
+          "x": 700,
+          "y": 150
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-input-llm",
+        "source": "input-1",
+        "source_port": "default",
+        "target": "llm-1"
+      },
+      {
+        "id": "e-tool-llm",
+        "source": "tool-1",
+        "source_port": "default",
+        "target": "llm-1"
+      },
+      {
+        "id": "e-llm-response",
+        "source": "llm-1",
+        "source_port": "success",
+        "target": "response-1"
+      }
+    ]
+  }
+}
