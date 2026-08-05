@@ -14,6 +14,7 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)],
 )
 
+
 def get_logger(name: str) -> logging.Logger:
     """Returns a logger instance for the given module name."""
     logger = logging.getLogger(name)

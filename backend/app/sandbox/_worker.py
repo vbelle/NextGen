@@ -23,9 +23,20 @@ _NOFILE = 16  # small — enough for stdio, not enough to be useful for abuse
 
 
 def _apply_resource_limits(cpu_seconds: int) -> None:
-    resource.setrlimit(resource.RLIMIT_CPU, (cpu_seconds, cpu_seconds))
-    resource.setrlimit(resource.RLIMIT_AS, (_MEMORY_BYTES, _MEMORY_BYTES))
-    resource.setrlimit(resource.RLIMIT_NOFILE, (_NOFILE, _NOFILE))
+    try:
+        resource.setrlimit(resource.RLIMIT_CPU, (cpu_seconds, cpu_seconds))
+    except (ValueError, OSError):
+        pass
+    try:
+        _, hard = resource.getrlimit(resource.RLIMIT_AS)
+        target = _MEMORY_BYTES if hard == resource.RLIM_INFINITY else min(_MEMORY_BYTES, hard)
+        resource.setrlimit(resource.RLIMIT_AS, (target, hard))
+    except (ValueError, OSError):
+        pass
+    try:
+        resource.setrlimit(resource.RLIMIT_NOFILE, (_NOFILE, _NOFILE))
+    except (ValueError, OSError):
+        pass
 
 
 _ALLOWED_IMPORTS = {

@@ -25,6 +25,7 @@ import { MemoryNode } from "./nodes/MemoryNode";
 import { ToolNode } from "./nodes/ToolNode";
 import { SubworkflowNode } from "./nodes/SubworkflowNode";
 import { MergeNode } from "./nodes/MergeNode";
+import { ExportNode } from "./nodes/ExportNode";
 import { VersionHistory } from "../workflows/VersionHistory";
 import { api, ApiError, type GraphJson } from "../api/client";
 
@@ -42,6 +43,7 @@ const nodeTypes = {
   tool: ToolNode,
   subworkflow: SubworkflowNode,
   merge: MergeNode,
+  export: ExportNode,
 };
 
 let idCounter = 0;
@@ -71,6 +73,14 @@ const DEFAULT_CONFIG: Record<string, Record<string, unknown>> = {
   tool: { function_name: "", description: "", implementation_ref: "" },
   subworkflow: { workflow_id: "", pinned_version_id: "" },
   merge: { strategy: "combine-object" },
+  export: {
+    destination: "file",
+    content: "{{previous}}",
+    slack_webhook_url: "",
+    email_recipient: "",
+    email_subject: "NextGen Workflow Report",
+    file_format: "markdown",
+  },
 };
 
 interface CanvasProps {
@@ -306,6 +316,7 @@ export function Canvas({
         <button onClick={() => addNode("tool")}>+ Tool</button>
         <button onClick={() => addNode("subworkflow")}>+ Sub-workflow</button>
         <button onClick={() => addNode("merge")}>+ Merge</button>
+        <button onClick={() => addNode("export")}>+ Export</button>
         <button
           onClick={deleteSelected}
           title="Select a node or edge (click it, shift-click for more) then delete it — or press Backspace/Delete"

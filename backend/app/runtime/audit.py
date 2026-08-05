@@ -51,9 +51,19 @@ def record_node_execution(
         except OperationalError as exc:
             session.rollback()
             if "database is locked" in str(exc).lower() and attempt < max_retries - 1:
-                logger.warning("Database locked while committing audit log for node '%s', retrying (%d/%d)...", node_id, attempt + 1, max_retries)
+                logger.warning(
+                    "Database locked while committing audit log for node '%s', retrying (%d/%d)...",
+                    node_id,
+                    attempt + 1,
+                    max_retries,
+                )
                 time.sleep(0.2 * (attempt + 1))
             else:
-                logger.error("Failed to commit audit log for node '%s' after %d attempts: %s", node_id, attempt + 1, exc)
+                logger.error(
+                    "Failed to commit audit log for node '%s' after %d attempts: %s",
+                    node_id,
+                    attempt + 1,
+                    exc,
+                )
                 raise
     return execution

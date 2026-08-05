@@ -29,7 +29,12 @@ def _make_node_fn(node_id: str, node_type: str, config: dict, executor):
     async def _node_fn(state: GraphState) -> dict:
         started_at = datetime.now(timezone.utc)  # noqa: UP017
         input_data = state.get("node_outputs", {}).get("__latest__")
-        logger.info("[NODE ENTRY] node_id='%s' type='%s' input_preview=%s", node_id, node_type, repr(str(input_data)[:100]) if input_data is not None else "None")
+        logger.info(
+            "[NODE ENTRY] node_id='%s' type='%s' input_preview=%s",
+            node_id,
+            node_type,
+            repr(str(input_data)[:100]) if input_data is not None else "None",
+        )
         try:
             result = await executor(node_id=node_id, config=config, state=state)
             output_port = result.get("last_output_port", {}).get(node_id, "default")
@@ -42,7 +47,13 @@ def _make_node_fn(node_id: str, node_type: str, config: dict, executor):
                 repr(str(output_data)[:150]) if output_data is not None else "None",
             )
         except Exception as exc:
-            logger.error("[NODE EXIT FAILURE] node_id='%s' type='%s' error=%s", node_id, node_type, exc, exc_info=True)
+            logger.error(
+                "[NODE EXIT FAILURE] node_id='%s' type='%s' error=%s",
+                node_id,
+                node_type,
+                exc,
+                exc_info=True,
+            )
             raise
 
         # Constitution VII ("Every Run Is Audited", FR-029/SC-007): one row per

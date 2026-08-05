@@ -61,12 +61,29 @@ def _make_tool(binding: BoundTool, run_id: str | None) -> StructuredTool:
 
     def _run(**kwargs):
         started_at = datetime.now(timezone.utc)  # noqa: UP017
-        logger.info("[TOOL ENTRY] node_id='%s' func='%s' impl_ref='%s' args=%s", binding.node_id, binding.function_name, binding.implementation_ref, kwargs)
+        logger.info(
+            "[TOOL ENTRY] node_id='%s' func='%s' impl_ref='%s' args=%s",
+            binding.node_id,
+            binding.function_name,
+            binding.implementation_ref,
+            kwargs,
+        )
         try:
             result = impl.func(**kwargs)
-            logger.info("[TOOL EXIT SUCCESS] node_id='%s' func='%s' output_preview=%s", binding.node_id, binding.function_name, repr(str(result)[:150]))
+            logger.info(
+                "[TOOL EXIT SUCCESS] node_id='%s' func='%s' output_preview=%s",
+                binding.node_id,
+                binding.function_name,
+                repr(str(result)[:150]),
+            )
         except Exception as exc:
-            logger.error("[TOOL EXIT FAILURE] node_id='%s' func='%s' error=%s", binding.node_id, binding.function_name, exc, exc_info=True)
+            logger.error(
+                "[TOOL EXIT FAILURE] node_id='%s' func='%s' error=%s",
+                binding.node_id,
+                binding.function_name,
+                exc,
+                exc_info=True,
+            )
             raise
 
         if run_id:
@@ -99,7 +116,12 @@ async def execute(node_id: str, config: dict, state: GraphState) -> dict:
         provider = _get_provider(cfg.provider)
         run_id = state.get("run_id")
         tools = [_make_tool(binding, run_id) for binding in cfg.bound_tools] or None
-        logger.info("Calling provider '%s' with model '%s' (tools=%s)", cfg.provider, cfg.model, len(tools) if tools else 0)
+        logger.info(
+            "Calling provider '%s' with model '%s' (tools=%s)",
+            cfg.provider,
+            cfg.model,
+            len(tools) if tools else 0,
+        )
         output = await asyncio.wait_for(
             provider.generate(model=cfg.model, prompt=rendered_prompt, tools=tools),
             timeout=cfg.timeout_seconds,
@@ -123,7 +145,6 @@ async def execute(node_id: str, config: dict, state: GraphState) -> dict:
             "node_outputs": {node_id: error, "__latest__": error},
             "last_output_port": {node_id: "failure"},
         }
-
 
 
 register_node_type("llm", LlmConfig, execute)

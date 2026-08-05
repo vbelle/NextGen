@@ -43,9 +43,13 @@ def verify_session_token(token: str | None) -> bool:
 class PasswordGateMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
-        if path in _PUBLIC_PATHS or path.startswith("/api/triggers/webhook/") or not path.startswith("/api"):
-            # Non-API paths, public webhooks (which verify X-NextGen-Secret), and public endpoints
-            # pass through here; the SPA itself blocks on an unauthenticated /api/workflows call and shows Login.
+        if (
+            path in _PUBLIC_PATHS
+            or path.startswith("/api/triggers/webhook/")
+            or not path.startswith("/api")
+        ):
+            # Non-API paths, public webhooks (which verify X-NextGen-Secret), and public
+            # endpoints pass through here; the SPA blocks unauthenticated calls.
             return await call_next(request)
         token = request.cookies.get(SESSION_COOKIE)
         if not verify_session_token(token):

@@ -34,9 +34,10 @@ ALLOWED_SOURCE_PORTS: dict[str, set[str]] = {
     "response": set(),  # terminal — no outgoing edges
     "retry": {"retry", "give-up"},
     "variable": {"default"},
+    "export": {"success", "failure"},
 }
 
-DUAL_OUTPUT_TYPES = {"llm", "api", "code", "subworkflow"}  # FR-017
+DUAL_OUTPUT_TYPES = {"llm", "api", "code", "subworkflow", "export"}  # FR-017
 
 
 class NodeTypeDefinition(NamedTuple):

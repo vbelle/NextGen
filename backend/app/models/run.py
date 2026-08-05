@@ -33,7 +33,9 @@ class Run(SQLModel, table=True):
     pending_prompt: str | None = Field(default=None)  # JSON: {"question": "...", "node_id": "..."}
     started_at: datetime = Field(default_factory=_now)
     ended_at: datetime | None = Field(default=None)
-    chat_session_id: str | None = Field(default=None, foreign_key="chatsession.id", index=True, nullable=True)
+    chat_session_id: str | None = Field(
+        default=None, foreign_key="chatsession.id", index=True, nullable=True
+    )
 
 
 class NodeExecution(SQLModel, table=True):

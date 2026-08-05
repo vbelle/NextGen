@@ -1,4 +1,4 @@
-"""Credential table — encrypted secret referenced by name/id from node configs. See data-model.md."""
+"""Credential table — encrypted secret referenced by name/id from node configs."""
 
 from __future__ import annotations
 
