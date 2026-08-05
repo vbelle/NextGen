@@ -13,6 +13,7 @@ from app.api import (
     codegen,
     credentials,
     custom_tools,
+    obsidian_routes,
     runs,
     tools,
     triggers,
@@ -37,6 +38,7 @@ app.include_router(vector_stores.router)
 app.include_router(tools.router)
 app.include_router(custom_tools.router)
 app.include_router(triggers.router)
+app.include_router(obsidian_routes.router)
 app.include_router(codegen.router)
 app.include_router(chat_websocket.router)
 

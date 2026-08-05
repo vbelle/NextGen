@@ -115,10 +115,32 @@ def reload_cron_triggers() -> None:
                 )
 
 
+async def _run_obsidian_sync_job():
+    from app.obsidian import sync_obsidian_vault
+
+    try:
+        await sync_obsidian_vault()
+    except Exception as exc:
+        logger.error("Automated daily Obsidian vault sync failed: %s", exc)
+
+
 def start_scheduler() -> None:
     """Starts the background cron scheduler if not already running."""
     scheduler = _get_scheduler()
     if not scheduler.running:
         scheduler.start()
         logger.info("Background Cron Scheduler started")
+
+    # Schedule daily 2 AM Obsidian Vault RAG sync
+    try:
+        scheduler.add_job(
+            _run_obsidian_sync_job,
+            trigger=CronTrigger.from_crontab("0 2 * * *"),
+            id="obsidian_daily_sync",
+            replace_existing=True,
+        )
+        logger.info("Scheduled daily 2 AM Obsidian Vault RAG sync job")
+    except Exception as exc:
+        logger.warning("Could not schedule daily Obsidian sync job: %s", exc)
+
     reload_cron_triggers()

@@ -7,6 +7,7 @@ import { LogsSidecar } from "./chat/LogsSidecar";
 import { CredentialManager } from "./credentials/CredentialManager";
 import { CustomToolManager } from "./tools/CustomToolManager";
 import { TriggerManager } from "./triggers/TriggerManager";
+import { ObsidianManager } from "./obsidian/ObsidianManager";
 import { api, ApiError, type WorkflowDetail } from "./api/client";
 
 type View = { name: "list" } | { name: "builder"; workflowId?: string };
@@ -22,6 +23,7 @@ export function App() {
   const [credentialsOpen, setCredentialsOpen] = useState(false);
   const [customToolsOpen, setCustomToolsOpen] = useState(false);
   const [triggersOpen, setTriggersOpen] = useState(false);
+  const [obsidianOpen, setObsidianOpen] = useState(false);
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const [autoStartWorkflow, setAutoStartWorkflow] = useState<string | null>(
     null,
@@ -66,6 +68,7 @@ export function App() {
         <button onClick={() => setCredentialsOpen(true)}>Credentials</button>
         <button onClick={() => setCustomToolsOpen(true)}>Custom Tools</button>
         <button onClick={() => setTriggersOpen(true)}>Triggers</button>
+        <button onClick={() => setObsidianOpen(true)}>Obsidian Vault</button>
       </nav>
       <main className="ng-main">
         {view.name === "list" && (
@@ -131,6 +134,10 @@ export function App() {
       <TriggerManager
         open={triggersOpen}
         onClose={() => setTriggersOpen(false)}
+      />
+      <ObsidianManager
+        open={obsidianOpen}
+        onClose={() => setObsidianOpen(false)}
       />
     </div>
   );

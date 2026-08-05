@@ -81,12 +81,28 @@ def _get_existing_collection(name: str) -> Collection:
         raise VectorStoreNotFoundError(name) from exc
 
 
+def get_or_create_store(name: str) -> Collection:
+    return _get_client().get_or_create_collection(
+        name=name, embedding_function=_embedding_function()
+    )
+
+
 async def add_documents(store_name: str, documents: list[str]) -> None:
     collection = _get_existing_collection(store_name)
     ids = [f"{store_name}-{collection.count() + i}" for i in range(len(documents))]
 
     async with OLLAMA_SEMAPHORE:
         await asyncio.to_thread(collection.add, ids=ids, documents=documents)
+
+
+async def add_documents_with_metadata(
+    store_name: str, documents: list[str], metadatas: list[dict], ids: list[str]
+) -> None:
+    collection = get_or_create_store(store_name)
+    async with OLLAMA_SEMAPHORE:
+        await asyncio.to_thread(
+            collection.upsert, ids=ids, documents=documents, metadatas=metadatas
+        )
 
 
 async def query_store(store_name: str, query_text: str, top_k: int) -> list[dict]:

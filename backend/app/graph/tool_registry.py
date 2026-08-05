@@ -44,6 +44,14 @@ class GoogleSearchArgs(BaseModel):
     )
 
 
+class YahooFinanceArgs(BaseModel):
+    ticker: str = Field(description="Stock ticker symbol, e.g. 'AAPL', 'NVDA', 'TSLA', 'MSFT'")
+    period: str = Field(
+        default="5d",
+        description="Historical chart period window: '1d', '5d', '1mo', '1y', '5y' (default '5d')",
+    )
+
+
 _WMO_CODES: dict[int, str] = {
     0: "clear sky",
     1: "mainly clear",
@@ -167,6 +175,66 @@ def google_search(query: str, num_results: int = 5) -> str:
     return "\n\n".join(parts)
 
 
+def yfinance_quote(ticker: str, period: str = "5d") -> str:
+    import yfinance as yf
+
+    sym = ticker.strip().upper()
+    t = yf.Ticker(sym)
+
+    try:
+        info = t.info or {}
+    except Exception:
+        info = {}
+
+    short_name = info.get("shortName") or info.get("longName") or sym
+    current_price = info.get("currentPrice") or info.get("regularMarketPrice")
+    previous_close = info.get("previousClose") or info.get("regularMarketPreviousClose")
+    market_cap = info.get("marketCap")
+    pe_ratio = info.get("trailingPE") or info.get("forwardPE")
+    fifty_two_high = info.get("fiftyTwoWeekHigh")
+    fifty_two_low = info.get("fiftyTwoWeekLow")
+    summary = info.get("longBusinessSummary") or info.get("description") or ""
+
+    hist = t.history(period=period)
+
+    parts = [f"📊 Stock Quote: {short_name} ({sym})"]
+    if current_price:
+        change_str = ""
+        if previous_close:
+            diff = current_price - previous_close
+            pct = (diff / previous_close) * 100
+            sign = "+" if diff >= 0 else ""
+            change_str = f" ({sign}{diff:.2f} / {sign}{pct:.2f}%)"
+        parts.append(f"Current Price: ${current_price:.2f}{change_str}")
+
+    if pe_ratio:
+        parts.append(f"P/E Ratio: {pe_ratio:.2f}")
+    if market_cap:
+        parts.append(f"Market Cap: ${market_cap:,}")
+    if fifty_two_high and fifty_two_low:
+        parts.append(f"52-Week Range: ${fifty_two_low:.2f} - ${fifty_two_high:.2f}")
+
+    if not hist.empty:
+        start_p = hist["Close"].iloc[0]
+        end_p = hist["Close"].iloc[-1]
+        min_p = hist["Low"].min()
+        max_p = hist["High"].max()
+        vol_avg = int(hist["Volume"].mean())
+        ret_pct = ((end_p - start_p) / start_p) * 100
+        sign = "+" if ret_pct >= 0 else ""
+        parts.append(
+            f"\n📈 {period.upper()} History Summary:\n"
+            f"  - Start/End: ${start_p:.2f} ➔ ${end_p:.2f} ({sign}{ret_pct:.2f}%)\n"
+            f"  - Low/High: ${min_p:.2f} - ${max_p:.2f}\n"
+            f"  - Avg Daily Volume: {vol_avg:,}"
+        )
+
+    if summary:
+        parts.append(f"\nBusiness Summary:\n{summary[:250]}...")
+
+    return "\n".join(parts) if parts else f"No data found for ticker '{sym}'."
+
+
 class ToolImplementation:
     def __init__(self, args_schema: type[BaseModel], func: Callable[..., str]):
         self.args_schema = args_schema
@@ -179,6 +247,7 @@ _REGISTRY: dict[str, ToolImplementation] = {
     "word_count": ToolImplementation(WordCountArgs, word_count),
     "get_weather": ToolImplementation(WeatherArgs, get_weather),
     "google_search": ToolImplementation(GoogleSearchArgs, google_search),
+    "yfinance_quote": ToolImplementation(YahooFinanceArgs, yfinance_quote),
 }
 
 

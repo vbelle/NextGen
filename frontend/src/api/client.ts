@@ -218,6 +218,26 @@ export const api = {
   deleteTrigger: (id: string) =>
     request<void>(`/api/triggers/${id}`, { method: "DELETE" }),
 
+  getObsidianStatus: () =>
+    request<{
+      vault_path: string;
+      total_vault_notes: number;
+      last_synced_at: string | null;
+      notes_parsed: number;
+      chunks_indexed: number;
+      collection_name: string;
+    }>("/api/obsidian/status"),
+
+  syncObsidianVault: () =>
+    request<{
+      vault_path: string;
+      total_vault_notes: number;
+      last_synced_at: string | null;
+      notes_parsed: number;
+      chunks_indexed: number;
+      collection_name: string;
+    }>("/api/obsidian/sync", { method: "POST" }),
+
   codegenLangGraph: (graph_json: GraphJson) =>
     request<{ code: string }>("/api/codegen/langgraph", {
       method: "POST",
