@@ -10,6 +10,7 @@ services:
       NEXTGEN_DB_PATH: /data/nextgen.db
       NEXTGEN_EMBEDDING_MODEL: ${NEXTGEN_EMBEDDING_MODEL:-nomic-embed-text}
       NEXTGEN_VECTOR_STORE_PATH: /data/vector_stores
+      SERPAPI_KEY: ${SERPAPI_KEY:-}
     volumes:
       - nextgen-data:/data
     depends_on:
