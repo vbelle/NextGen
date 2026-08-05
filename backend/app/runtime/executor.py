@@ -76,11 +76,16 @@ async def resume_run(*, session_factory, run_id: str, graph_json: dict, resume_v
 async def _execute(session_factory, run_id: str, graph_json: dict, run_input) -> None:
     from app.runtime import notify  # local import: avoids a circular import with chat/websocket.py
 
+    from app.runtime.langfuse_tracer import get_langfuse_callback_handler
+
     logger.info("Executing run '%s'", run_id)
     checkpointer = await get_checkpointer()
     builder = compile_graph(graph_json)
     compiled = builder.compile(checkpointer=checkpointer)
     config = {"configurable": {"thread_id": run_id}}
+    langfuse_handler = get_langfuse_callback_handler(run_id)
+    if langfuse_handler:
+        config["callbacks"] = [langfuse_handler]
 
     with session_factory() as session:
         db_run = session.get(Run, run_id)
