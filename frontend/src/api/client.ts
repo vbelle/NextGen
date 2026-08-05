@@ -148,6 +148,32 @@ export const api = {
   listToolImplementations: () =>
     request<{ implementation_ref: string }[]>("/api/tools"),
 
+  listCustomTools: () =>
+    request<{
+      id: string;
+      name: string;
+      description: string;
+      python_code: string;
+      created_at: string;
+      updated_at: string;
+    }[]>("/api/custom-tools"),
+
+  createCustomTool: (name: string, description: string, python_code: string) =>
+    request<{
+      id: string;
+      name: string;
+      description: string;
+      python_code: string;
+      created_at: string;
+      updated_at: string;
+    }>("/api/custom-tools", {
+      method: "POST",
+      body: JSON.stringify({ name, description, python_code }),
+    }),
+
+  deleteCustomTool: (id: string) =>
+    request<void>(`/api/custom-tools/${id}`, { method: "DELETE" }),
+
   codegenLangGraph: (graph_json: GraphJson) =>
     request<{ code: string }>("/api/codegen/langgraph", {
       method: "POST",

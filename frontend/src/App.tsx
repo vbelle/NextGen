@@ -5,6 +5,7 @@ import { Canvas } from "./canvas/Canvas";
 import { ChatSidecar } from "./chat/ChatSidecar";
 import { LogsSidecar } from "./chat/LogsSidecar";
 import { CredentialManager } from "./credentials/CredentialManager";
+import { CustomToolManager } from "./tools/CustomToolManager";
 import { api, ApiError, type WorkflowDetail } from "./api/client";
 
 type View = { name: "list" } | { name: "builder"; workflowId?: string };
@@ -18,6 +19,7 @@ export function App() {
   const [chatOpen, setChatOpen] = useState(false);
   const [logsOpen, setLogsOpen] = useState(false);
   const [credentialsOpen, setCredentialsOpen] = useState(false);
+  const [customToolsOpen, setCustomToolsOpen] = useState(false);
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const [autoStartWorkflow, setAutoStartWorkflow] = useState<string | null>(
     null,
@@ -60,6 +62,7 @@ export function App() {
           {logsOpen ? "Close logs" : "Logs"}
         </button>
         <button onClick={() => setCredentialsOpen(true)}>Credentials</button>
+        <button onClick={() => setCustomToolsOpen(true)}>Custom Tools</button>
       </nav>
       <main className="ng-main">
         {view.name === "list" && (
@@ -117,6 +120,10 @@ export function App() {
       <CredentialManager
         open={credentialsOpen}
         onClose={() => setCredentialsOpen(false)}
+      />
+      <CustomToolManager
+        open={customToolsOpen}
+        onClose={() => setCustomToolsOpen(false)}
       />
     </div>
   );

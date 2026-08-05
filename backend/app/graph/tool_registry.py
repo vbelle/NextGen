@@ -1,30 +1,21 @@
-"""Backend registry of built-in tools a Tool node's `implementation_ref` can
-resolve to.
-
-2026-07-30 design decision (asked, not guessed — contracts/graph-schema.md's
-`implementation_ref: "string, maps to a registered backend tool"` doesn't say
-what a "registered backend tool" actually is): a small, fixed registry of
-pre-written Python functions shipped with the app, rather than user-authored
-code (that's the Code node's job — a Tool node config has no snippet field)
-or an HTTP call (that's the API node's job — this would just duplicate it).
-
-Each entry pairs a Pydantic args schema — needed because the Tool node's own
-config carries no parameter schema, only a name/description/ref — with a
-plain, synchronous, side-effect-free Python callable. LangChain's tool
-wrapper (built in app/graph/nodes/llm_node.py, since that's where a run_id
-is available for audit logging) runs sync callables like these in a thread
-automatically when awaited, so there's no need for these to be async."""
+"""Backend registry of built-in and user-defined custom tools a Tool node's
+`implementation_ref` can resolve to."""
 
 from __future__ import annotations
 
 import ast
-import operator
-import os
 from collections.abc import Callable
 from datetime import datetime, timezone
+import os
+import operator
+from typing import Any
 
 import httpx
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, create_model
+from sqlmodel import Session, select
+
+from app.db import get_engine
+from app.models.custom_tool import CustomTool
 
 
 class CalculatorArgs(BaseModel):
@@ -53,12 +44,6 @@ class GoogleSearchArgs(BaseModel):
     )
 
 
-# Open-Meteo, not a weather.com/OpenWeatherMap-style API: no API key or signup
-# required (a Tool implementation here has no credential_id field to plug one
-# into anyway — that's the API node's job, per this module's docstring), and
-# both of its endpoints used below are free with no rate-limit key. WMO
-# weather codes per https://open-meteo.com/en/docs — condensed to the ones
-# actually likely to come back for a current-conditions lookup.
 _WMO_CODES: dict[int, str] = {
     0: "clear sky",
     1: "mainly clear",
@@ -85,9 +70,6 @@ _WMO_CODES: dict[int, str] = {
 
 
 def get_weather(city: str) -> str:
-    # Open-Meteo has no built-in city-name search on the forecast endpoint
-    # itself, so this is two calls: geocode the city to lat/lon, then fetch
-    # current conditions for that point.
     geo = httpx.get(
         "https://geocoding-api.open-meteo.com/v1/search",
         params={"name": city, "count": 1},
@@ -128,9 +110,6 @@ _ALLOWED_UNARY_OPS: dict[type, Callable] = {ast.UAdd: operator.pos, ast.USub: op
 
 
 def _safe_eval(node: ast.AST) -> float:
-    # Whitelist-based arithmetic evaluator (no eval()/exec()) — same spirit as
-    # the Code node's RestrictedPython sandboxing, scoped down to arithmetic
-    # since that's all a calculator tool needs.
     if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
         return node.value
     if isinstance(node, ast.BinOp) and type(node.op) in _ALLOWED_BIN_OPS:
@@ -149,8 +128,6 @@ def calculator(expression: str) -> str:
 
 
 def current_datetime() -> str:
-    # timezone.utc, not the datetime.UTC alias, to match every other
-    # started_at/ended_at timestamp in this codebase (e.g. app/runtime/audit.py).
     return datetime.now(timezone.utc).isoformat()  # noqa: UP017
 
 
@@ -159,12 +136,6 @@ def word_count(text: str) -> str:
 
 
 def google_search(query: str, num_results: int = 5) -> str:
-    """Search Google via SerpAPI and return the top organic results as plain text.
-
-    Requires SERPAPI_KEY in the environment (set it in .env — get a free key
-    at https://serpapi.com). Never put the key directly in a workflow or tool
-    config; read it here from the environment so it stays out of graph JSON.
-    """
     api_key = os.environ.get("SERPAPI_KEY", "").strip()
     if not api_key:
         raise ValueError(
@@ -180,7 +151,6 @@ def google_search(query: str, num_results: int = 5) -> str:
     response.raise_for_status()
     data = response.json()
 
-    # SerpAPI surfaces a top-level error field on bad keys / quota exceeded.
     if "error" in data:
         raise ValueError(f"SerpAPI error: {data['error']}")
 
@@ -212,19 +182,100 @@ _REGISTRY: dict[str, ToolImplementation] = {
 }
 
 
+def build_custom_tool_schema_and_fn(tool_name: str, python_code: str) -> ToolImplementation:
+    """Parses a Python code snippet using AST to construct a dynamic Pydantic schema
+    and execution function for function-calling."""
+    try:
+        tree = ast.parse(python_code)
+    except SyntaxError as exc:
+        raise ValueError(f"Invalid Python syntax in tool '{tool_name}': {exc}") from exc
+
+    func_def = next((node for node in tree.body if isinstance(node, ast.FunctionDef)), None)
+    if not func_def:
+        raise ValueError(f"No top-level function definition found in code for tool '{tool_name}'")
+
+    docstring = ast.get_docstring(func_def) or f"Custom tool '{tool_name}'"
+
+    fields: dict[str, Any] = {}
+    args = func_def.args.args
+    defaults = func_def.args.defaults
+    num_defaults = len(defaults)
+    num_args = len(args)
+
+    for i, arg in enumerate(args):
+        arg_name = arg.arg
+        if arg_name in ("self", "cls"):
+            continue
+
+        # Type annotation mapping
+        type_hint = str
+        if arg.annotation:
+            ann_str = ast.unparse(arg.annotation).strip().lower()
+            if ann_str in ("int", "integer"):
+                type_hint = int
+            elif ann_str in ("float", "double", "number"):
+                type_hint = float
+            elif ann_str in ("bool", "boolean"):
+                type_hint = bool
+            elif ann_str in ("dict", "object"):
+                type_hint = dict
+            elif ann_str in ("list", "array"):
+                type_hint = list
+
+        default_idx = i - (num_args - num_defaults)
+        if default_idx >= 0:
+            default_ast = defaults[default_idx]
+            try:
+                default_val = ast.literal_eval(default_ast)
+                fields[arg_name] = (
+                    type_hint,
+                    Field(default=default_val, description=f"Parameter '{arg_name}'"),
+                )
+            except Exception:
+                fields[arg_name] = (type_hint, Field(description=f"Parameter '{arg_name}'"))
+        else:
+            fields[arg_name] = (type_hint, Field(description=f"Parameter '{arg_name}'"))
+
+    schema_name = f"{tool_name.title().replace('_', '')}Args"
+    args_schema = create_model(schema_name, **fields)
+    args_schema.__doc__ = docstring
+
+    def _exec(**kwargs) -> str:
+        loc: dict[str, Any] = {}
+        glob: dict[str, Any] = {"httpx": httpx, "json": os, "datetime": datetime, "math": ast}
+        exec(python_code, glob, loc)
+        fn = loc.get(func_def.name) or glob.get(func_def.name)
+        if not callable(fn):
+            raise ValueError(f"Function '{func_def.name}' not found in executable scope")
+        res = fn(**kwargs)
+        return str(res) if res is not None else ""
+
+    return ToolImplementation(args_schema=args_schema, func=_exec)
+
+
 class UnknownToolImplementationError(Exception):
     def __init__(self, ref: str):
-        self.ref = ref
-        super().__init__(
-            f"'{ref}' is not a registered tool implementation. Known: {sorted(_REGISTRY)}"
-        )
+        known = sorted(list_tool_implementations())
+        super().__init__(f"'{ref}' is not a registered tool implementation. Known: {known}")
 
 
 def get_tool_implementation(ref: str) -> ToolImplementation:
-    if ref not in _REGISTRY:
-        raise UnknownToolImplementationError(ref)
-    return _REGISTRY[ref]
+    if ref in _REGISTRY:
+        return _REGISTRY[ref]
+
+    # Query DB for CustomTool
+    with Session(get_engine()) as session:
+        tool_row = session.exec(select(CustomTool).where(CustomTool.name == ref)).first()
+        if tool_row:
+            return build_custom_tool_schema_and_fn(tool_row.name, tool_row.python_code)
+
+    raise UnknownToolImplementationError(ref)
 
 
 def list_tool_implementations() -> list[str]:
-    return sorted(_REGISTRY)
+    builtins = set(_REGISTRY.keys())
+    with Session(get_engine()) as session:
+        custom_rows = session.exec(select(CustomTool)).all()
+        for r in custom_rows:
+            builtins.add(r.name)
+    return sorted(list(builtins))
