@@ -19,6 +19,7 @@ dependencies = [
     "python-multipart>=0.0.9",
     "pydantic>=2.9",
     "langfuse>=2.0.0",
+    "APScheduler>=3.10.0",
 ]
 
 [project.optional-dependencies]

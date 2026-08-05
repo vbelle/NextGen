@@ -18,7 +18,7 @@ from sqlalchemy.engine import Engine
 from sqlmodel import Session, SQLModel, create_engine
 
 # Import models so SQLModel.metadata knows about every table before create_all().
-from app.models import chat, credential, custom_tool, run, variable, workflow  # noqa: F401
+from app.models import chat, credential, custom_tool, run, trigger, variable, workflow  # noqa: F401
 
 _engine_cache: dict[str, Engine] = {}
 

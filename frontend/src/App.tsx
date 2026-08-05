@@ -6,6 +6,7 @@ import { ChatSidecar } from "./chat/ChatSidecar";
 import { LogsSidecar } from "./chat/LogsSidecar";
 import { CredentialManager } from "./credentials/CredentialManager";
 import { CustomToolManager } from "./tools/CustomToolManager";
+import { TriggerManager } from "./triggers/TriggerManager";
 import { api, ApiError, type WorkflowDetail } from "./api/client";
 
 type View = { name: "list" } | { name: "builder"; workflowId?: string };
@@ -20,6 +21,7 @@ export function App() {
   const [logsOpen, setLogsOpen] = useState(false);
   const [credentialsOpen, setCredentialsOpen] = useState(false);
   const [customToolsOpen, setCustomToolsOpen] = useState(false);
+  const [triggersOpen, setTriggersOpen] = useState(false);
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const [autoStartWorkflow, setAutoStartWorkflow] = useState<string | null>(
     null,
@@ -63,6 +65,7 @@ export function App() {
         </button>
         <button onClick={() => setCredentialsOpen(true)}>Credentials</button>
         <button onClick={() => setCustomToolsOpen(true)}>Custom Tools</button>
+        <button onClick={() => setTriggersOpen(true)}>Triggers</button>
       </nav>
       <main className="ng-main">
         {view.name === "list" && (
@@ -124,6 +127,10 @@ export function App() {
       <CustomToolManager
         open={customToolsOpen}
         onClose={() => setCustomToolsOpen(false)}
+      />
+      <TriggerManager
+        open={triggersOpen}
+        onClose={() => setTriggersOpen(false)}
       />
     </div>
   );

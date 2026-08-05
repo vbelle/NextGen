@@ -174,6 +174,50 @@ export const api = {
   deleteCustomTool: (id: string) =>
     request<void>(`/api/custom-tools/${id}`, { method: "DELETE" }),
 
+  listTriggers: () =>
+    request<{
+      id: string;
+      workflow_id: string;
+      workflow_name: string | null;
+      trigger_type: string;
+      cron_expression: string | null;
+      webhook_secret: string | null;
+      enabled: boolean;
+      created_at: string;
+      updated_at: string;
+    }[]>("/api/triggers"),
+
+  createTrigger: (
+    workflow_id: string,
+    trigger_type: string,
+    cron_expression?: string,
+    webhook_secret?: string,
+    enabled: boolean = true,
+  ) =>
+    request<{
+      id: string;
+      workflow_id: string;
+      workflow_name: string | null;
+      trigger_type: string;
+      cron_expression: string | null;
+      webhook_secret: string | null;
+      enabled: boolean;
+      created_at: string;
+      updated_at: string;
+    }>("/api/triggers", {
+      method: "POST",
+      body: JSON.stringify({
+        workflow_id,
+        trigger_type,
+        cron_expression,
+        webhook_secret,
+        enabled,
+      }),
+    }),
+
+  deleteTrigger: (id: string) =>
+    request<void>(`/api/triggers/${id}`, { method: "DELETE" }),
+
   codegenLangGraph: (graph_json: GraphJson) =>
     request<{ code: string }>("/api/codegen/langgraph", {
       method: "POST",
