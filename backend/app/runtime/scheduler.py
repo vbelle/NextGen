@@ -124,6 +124,15 @@ async def _run_obsidian_sync_job():
         logger.error("Automated daily Obsidian vault sync failed: %s", exc)
 
 
+async def _run_interview_sync_job():
+    from app.interview import sync_interview_vault
+
+    try:
+        await sync_interview_vault()
+    except Exception as exc:
+        logger.error("Automated daily Interview vault sync failed: %s", exc)
+
+
 def start_scheduler() -> None:
     """Starts the background cron scheduler if not already running."""
     scheduler = _get_scheduler()
@@ -142,5 +151,17 @@ def start_scheduler() -> None:
         logger.info("Scheduled daily 2 AM Obsidian Vault RAG sync job")
     except Exception as exc:
         logger.warning("Could not schedule daily Obsidian sync job: %s", exc)
+
+    # Schedule daily 3 AM Interview Vault RAG sync
+    try:
+        scheduler.add_job(
+            _run_interview_sync_job,
+            trigger=CronTrigger.from_crontab("0 3 * * *"),
+            id="interview_daily_sync",
+            replace_existing=True,
+        )
+        logger.info("Scheduled daily 3 AM Interview Vault RAG sync job")
+    except Exception as exc:
+        logger.warning("Could not schedule daily Interview sync job: %s", exc)
 
     reload_cron_triggers()

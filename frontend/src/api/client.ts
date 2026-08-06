@@ -238,6 +238,26 @@ export const api = {
       collection_name: string;
     }>("/api/obsidian/sync", { method: "POST" }),
 
+  getInterviewStatus: () =>
+    request<{
+      vault_path: string;
+      total_files: number;
+      last_synced_at: string | null;
+      files_parsed: number;
+      chunks_indexed: number;
+      collection_name: string;
+    }>("/api/interview/status"),
+
+  syncInterviewVault: () =>
+    request<{
+      vault_path: string;
+      total_files: number;
+      last_synced_at: string | null;
+      files_parsed: number;
+      chunks_indexed: number;
+      collection_name: string;
+    }>("/api/interview/sync", { method: "POST" }),
+
   codegenLangGraph: (graph_json: GraphJson) =>
     request<{ code: string }>("/api/codegen/langgraph", {
       method: "POST",

@@ -8,6 +8,7 @@ import { CredentialManager } from "./credentials/CredentialManager";
 import { CustomToolManager } from "./tools/CustomToolManager";
 import { TriggerManager } from "./triggers/TriggerManager";
 import { ObsidianManager } from "./obsidian/ObsidianManager";
+import { InterviewManager } from "./interview/InterviewManager";
 import { api, ApiError, type WorkflowDetail } from "./api/client";
 
 type View = { name: "list" } | { name: "builder"; workflowId?: string };
@@ -24,6 +25,7 @@ export function App() {
   const [customToolsOpen, setCustomToolsOpen] = useState(false);
   const [triggersOpen, setTriggersOpen] = useState(false);
   const [obsidianOpen, setObsidianOpen] = useState(false);
+  const [interviewOpen, setInterviewOpen] = useState(false);
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const [autoStartWorkflow, setAutoStartWorkflow] = useState<string | null>(
     null,
@@ -69,6 +71,7 @@ export function App() {
         <button onClick={() => setCustomToolsOpen(true)}>Custom Tools</button>
         <button onClick={() => setTriggersOpen(true)}>Triggers</button>
         <button onClick={() => setObsidianOpen(true)}>Obsidian Vault</button>
+        <button onClick={() => setInterviewOpen(true)}>Interview Vault</button>
       </nav>
       <main className="ng-main">
         {view.name === "list" && (
@@ -138,6 +141,10 @@ export function App() {
       <ObsidianManager
         open={obsidianOpen}
         onClose={() => setObsidianOpen(false)}
+      />
+      <InterviewManager
+        open={interviewOpen}
+        onClose={() => setInterviewOpen(false)}
       />
     </div>
   );
