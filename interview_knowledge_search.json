@@ -7,7 +7,7 @@
         "type": "input",
         "name": "User Question",
         "config": {
-          "prompt": "Ask any question about interviews, job descriptions (e.g. Capital One, Fidelity), past experience, or system design (type 'exit' to quit):",
+          "prompt": "Ask any question about interviews, job descriptions (e.g. State Street, Capital One, Fidelity), past experience, or system design (type 'exit' to quit):",
           "required": true
         },
         "position": {
@@ -34,7 +34,7 @@
         "type": "response",
         "name": "Exit Session",
         "config": {
-          "content": "👋 Search session closed. Thank you!"
+          "content": "👋 Interview search session closed. Thank you!"
         },
         "position": {
           "x": 350,
