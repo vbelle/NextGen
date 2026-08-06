@@ -40,6 +40,10 @@ def _get_val(name: str, state: GraphState):
     if name.lower() in node_outputs:
         return node_outputs[name.lower()]
 
+    # Tool nodes (e.g. tool-1, Interview Search Tool) are bound schemas, not standalone execution steps
+    if "tool" in name.lower():
+        return f"[Tool Availability: {name}]"
+
     raise VariableNotSetError(name)
 
 
