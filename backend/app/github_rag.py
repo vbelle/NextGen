@@ -87,7 +87,11 @@ async def sync_github_repo(
     branch: str | None = None,
     token: str | None = None,
     target_collection: str = "interview_vault",
+    reset: bool = False,
 ) -> dict[str, Any]:
+    if reset:
+        logger.info("Resetting collection '%s' before re-indexing...", target_collection)
+        vectorstore.delete_store(target_collection)
     auth_token = token or os.environ.get("GITHUB_TOKEN", "").strip() or None
     headers = {"User-Agent": "NextGen-Agent-Platform"}
     if auth_token:

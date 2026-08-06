@@ -16,6 +16,7 @@ class GitHubSyncPayload(BaseModel):
     branch: str | None = None
     token: str | None = None
     target_collection: str = "interview_vault"
+    reset: bool = False
 
 
 @router.get("/status")
@@ -34,6 +35,7 @@ async def sync(payload: GitHubSyncPayload):
             branch=payload.branch,
             token=payload.token,
             target_collection=payload.target_collection,
+            reset=payload.reset,
         )
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

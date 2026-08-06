@@ -22,6 +22,7 @@ export function GitHubSyncManager({ open, onClose }: Props) {
   const [branch, setBranch] = useState("");
   const [token, setToken] = useState("");
   const [targetCollection, setTargetCollection] = useState("interview_vault");
+  const [reset, setReset] = useState(true);
   const [status, setStatus] = useState<GitHubStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -63,6 +64,7 @@ export function GitHubSyncManager({ open, onClose }: Props) {
         branch.trim() || undefined,
         token.trim() || undefined,
         targetCollection,
+        reset,
       );
       setStatus(res);
       setMessage(
@@ -165,6 +167,19 @@ export function GitHubSyncManager({ open, onClose }: Props) {
               disabled={syncing}
               style={{ width: "100%", padding: "6px", borderRadius: "4px" }}
             />
+          </div>
+
+          <div style={{ marginBottom: "14px", display: "flex", alignItems: "center", gap: "8px" }}>
+            <input
+              type="checkbox"
+              id="reset-check"
+              checked={reset}
+              onChange={(e) => setReset(e.target.checked)}
+              disabled={syncing}
+            />
+            <label htmlFor="reset-check" style={{ fontSize: "12px", color: "#b91c1c", fontWeight: "bold", cursor: "pointer" }}>
+              🧹 Reset Collection & Re-Index Cleanly (Wipe Old Chunks)
+            </label>
           </div>
 
           {status && (

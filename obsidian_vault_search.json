@@ -7,12 +7,38 @@
         "type": "input",
         "name": "User Question",
         "config": {
-          "prompt": "What topic or note would you like to search in your Obsidian vault?",
+          "prompt": "What topic or note would you like to search in your Obsidian vault? (type 'exit' to quit):",
           "required": true
         },
         "position": {
           "x": 100,
           "y": 150
+        }
+      },
+      {
+        "id": "decision-1",
+        "type": "decision",
+        "name": "Check for Exit",
+        "config": {
+          "left": "{{previous}}",
+          "operator": "contains",
+          "right": "exit"
+        },
+        "position": {
+          "x": 350,
+          "y": 150
+        }
+      },
+      {
+        "id": "exit-response",
+        "type": "response",
+        "name": "Exit Session",
+        "config": {
+          "content": "👋 Obsidian search session closed. Thank you!"
+        },
+        "position": {
+          "x": 350,
+          "y": 350
         }
       },
       {
@@ -25,8 +51,8 @@
           "implementation_ref": "obsidian_search"
         },
         "position": {
-          "x": 100,
-          "y": 350
+          "x": 600,
+          "y": 50
         }
       },
       {
@@ -36,10 +62,10 @@
         "config": {
           "vector_store_ref": "obsidian_vault",
           "query": "{{previous}}",
-          "top_k": 5
+          "top_k": 10
         },
         "position": {
-          "x": 350,
+          "x": 600,
           "y": 150
         }
       },
@@ -54,7 +80,7 @@
           "timeout_seconds": 180
         },
         "position": {
-          "x": 650,
+          "x": 850,
           "y": 150
         }
       },
@@ -66,16 +92,28 @@
           "content": "{{previous}}"
         },
         "position": {
-          "x": 950,
+          "x": 1100,
           "y": 150
         }
       }
     ],
     "edges": [
       {
-        "id": "e-input-memory",
+        "id": "e-input-decision",
         "source": "input-1",
         "source_port": "default",
+        "target": "decision-1"
+      },
+      {
+        "id": "e-decision-exit",
+        "source": "decision-1",
+        "source_port": "true",
+        "target": "exit-response"
+      },
+      {
+        "id": "e-decision-memory",
+        "source": "decision-1",
+        "source_port": "false",
         "target": "memory-1"
       },
       {

@@ -291,6 +291,7 @@ export const api = {
     branch?: string,
     token?: string,
     target_collection: string = "interview_vault",
+    reset: boolean = false,
   ) =>
     request<{
       owner: string;
@@ -309,6 +310,7 @@ export const api = {
         branch,
         token,
         target_collection,
+        reset,
       }),
     }),
 

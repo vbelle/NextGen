@@ -79,6 +79,13 @@ def create_store(name: str) -> None:
     _get_client().create_collection(name=name, embedding_function=_embedding_function())
 
 
+def delete_store(name: str) -> None:
+    try:
+        _get_client().delete_collection(name=name)
+    except Exception:
+        pass
+
+
 def _get_existing_collection(name: str) -> Collection:
     try:
         return _get_client().get_collection(name=name, embedding_function=_embedding_function())
@@ -183,11 +190,12 @@ async def hybrid_query_store(store_name: str, query_text: str, top_k: int = 10) 
     # 1. Fetch dense vector search candidates (up to 25)
     vector_results = await query_store(store_name, query_text, top_k=min(25, max(top_k * 2, 20)))
 
-    # Extract query keywords and split subwords (e.g., "capitalone" -> ["capitalone", "capital", "one"])
+    # Extract query keywords and split subwords e.g. "capitalone"
     raw_words = [
         w.lower().strip()
         for w in re.findall(r"\b[a-zA-Z0-9_\-]{3,}\b", query_text)
-        if w.lower() not in {"the", "and", "for", "with", "that", "this", "from", "have", "give", "what"}
+        if w.lower()
+        not in {"the", "and", "for", "with", "that", "this", "from", "have", "give", "what"}
     ]
     keywords: set[str] = set(raw_words)
     for rw in raw_words:
