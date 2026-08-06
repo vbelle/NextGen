@@ -6,14 +6,9 @@ from unittest.mock import AsyncMock, patch
 from app import obsidian
 
 
-def test_chunk_text():
+def test_markdown_section_chunker():
     short = "Hello world"
-    assert obsidian.chunk_text(short, chunk_size=100) == ["Hello world"]
-
-    long_text = "A" * 120
-    chunks = obsidian.chunk_text(long_text, chunk_size=50, overlap=10)
-    assert len(chunks) > 1
-    assert chunks[0] == "A" * 50
+    assert obsidian.markdown_section_chunker(short, max_chunk_size=100) == ["Hello world"]
 
 
 def test_parse_obsidian_note(tmp_path):

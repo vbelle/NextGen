@@ -26,18 +26,43 @@ _EXCLUDED_PATH_PARTS = {
 _SYNC_STATUS_CACHE: dict[str, dict[str, Any]] = {}
 
 
-def chunk_text(text: str, chunk_size: int = 600, overlap: int = 60) -> list[str]:
+def markdown_section_chunker(
+    text: str, max_chunk_size: int = 1500, overlap: int = 150
+) -> list[str]:
+    """Chunks markdown documents structurally by section headers (#, ##, ###)
+    to keep job descriptions, prep notes, and technical topics intact."""
     cleaned = text.strip()
     if not cleaned:
         return []
-    if len(cleaned) <= chunk_size:
-        return [cleaned]
+
+    # Split by markdown headers
+    header_pattern = r"(?=\n#{1,3}\s+)"
+    raw_sections = re.split(header_pattern, "\n" + cleaned)
+    sections = [s.strip() for s in raw_sections if s.strip()]
+
     chunks: list[str] = []
-    start = 0
-    while start < len(cleaned):
-        end = start + chunk_size
-        chunks.append(cleaned[start:end])
-        start += chunk_size - overlap
+    current_chunk = ""
+
+    for sec in sections:
+        if len(current_chunk) + len(sec) <= max_chunk_size:
+            current_chunk = (current_chunk + "\n\n" + sec).strip()
+        else:
+            if current_chunk:
+                chunks.append(current_chunk)
+            if len(sec) > max_chunk_size:
+                # If section itself is huge, fall back to sliding window
+                start = 0
+                while start < len(sec):
+                    end = start + max_chunk_size
+                    chunks.append(sec[start:end].strip())
+                    start += max_chunk_size - overlap
+                current_chunk = ""
+            else:
+                current_chunk = sec
+
+    if current_chunk:
+        chunks.append(current_chunk)
+
     return chunks
 
 
@@ -120,7 +145,7 @@ async def sync_github_repo(
 
             content = content_resp.text
             parsed = parse_github_file(path, content)
-            chunks = chunk_text(parsed["content"])
+            chunks = markdown_section_chunker(parsed["content"])
             if not chunks:
                 continue
 

@@ -7,9 +7,9 @@ from app import interview
 from app.graph.tool_registry import get_tool_implementation, interview_search
 
 
-def test_chunk_text():
+def test_markdown_section_chunker():
     short = "Interview prep summary"
-    assert interview.chunk_text(short, chunk_size=100) == ["Interview prep summary"]
+    assert interview.markdown_section_chunker(short, max_chunk_size=100) == ["Interview prep summary"]
 
 
 def test_parse_interview_file(tmp_path):

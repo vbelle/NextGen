@@ -253,7 +253,7 @@ def yfinance_quote(ticker: str, period: str = "5d") -> str:
     return "\n".join(parts) if parts else f"No data found for ticker '{sym}'."
 
 
-def interview_search(query: str, top_k: int = 5) -> str:
+def interview_search(query: str, top_k: int = 10) -> str:
     import asyncio
     from app import vectorstore
     from app.interview import INTERVIEW_COLLECTION
@@ -265,15 +265,18 @@ def interview_search(query: str, top_k: int = 5) -> str:
             loop = None
 
         if loop and loop.is_running():
-            # In async contexts, run in a separate thread or reuse loop
             import concurrent.futures
 
             with concurrent.futures.ThreadPoolExecutor() as pool:
                 results = pool.submit(
-                    lambda: asyncio.run(vectorstore.query_store(INTERVIEW_COLLECTION, query, top_k))
+                    lambda: asyncio.run(
+                        vectorstore.hybrid_query_store(INTERVIEW_COLLECTION, query, top_k)
+                    )
                 ).result()
         else:
-            results = asyncio.run(vectorstore.query_store(INTERVIEW_COLLECTION, query, top_k))
+            results = asyncio.run(
+                vectorstore.hybrid_query_store(INTERVIEW_COLLECTION, query, top_k)
+            )
     except Exception as exc:
         return f"Interview Vault RAG query failed: {exc}. Ensure the vault has been synced!"
 
@@ -288,7 +291,7 @@ def interview_search(query: str, top_k: int = 5) -> str:
     return "\n\n".join(parts)
 
 
-def obsidian_search(query: str, top_k: int = 5) -> str:
+def obsidian_search(query: str, top_k: int = 10) -> str:
     import asyncio
     from app import vectorstore
     from app.obsidian import OBSIDIAN_COLLECTION
@@ -304,10 +307,12 @@ def obsidian_search(query: str, top_k: int = 5) -> str:
 
             with concurrent.futures.ThreadPoolExecutor() as pool:
                 results = pool.submit(
-                    lambda: asyncio.run(vectorstore.query_store(OBSIDIAN_COLLECTION, query, top_k))
+                    lambda: asyncio.run(
+                        vectorstore.hybrid_query_store(OBSIDIAN_COLLECTION, query, top_k)
+                    )
                 ).result()
         else:
-            results = asyncio.run(vectorstore.query_store(OBSIDIAN_COLLECTION, query, top_k))
+            results = asyncio.run(vectorstore.hybrid_query_store(OBSIDIAN_COLLECTION, query, top_k))
     except Exception as exc:
         return f"Obsidian Vault RAG query failed: {exc}. Ensure the Obsidian vault has been synced!"
 

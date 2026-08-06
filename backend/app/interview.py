@@ -39,22 +39,40 @@ def get_interview_vault_path() -> Path:
     return path
 
 
-def chunk_text(text: str, chunk_size: int = 600, overlap: int = 60) -> list[str]:
-    """Splits text into overlapping semantic chunks."""
+def markdown_section_chunker(
+    text: str, max_chunk_size: int = 1500, overlap: int = 150
+) -> list[str]:
+    """Chunks markdown documents structurally by section headers (#, ##, ###)."""
     cleaned = text.strip()
     if not cleaned:
         return []
 
-    if len(cleaned) <= chunk_size:
-        return [cleaned]
+    header_pattern = r"(?=\n#{1,3}\s+)"
+    raw_sections = re.split(header_pattern, "\n" + cleaned)
+    sections = [s.strip() for s in raw_sections if s.strip()]
 
     chunks: list[str] = []
-    start = 0
-    while start < len(cleaned):
-        end = start + chunk_size
-        chunk = cleaned[start:end]
-        chunks.append(chunk)
-        start += chunk_size - overlap
+    current_chunk = ""
+
+    for sec in sections:
+        if len(current_chunk) + len(sec) <= max_chunk_size:
+            current_chunk = (current_chunk + "\n\n" + sec).strip()
+        else:
+            if current_chunk:
+                chunks.append(current_chunk)
+            if len(sec) > max_chunk_size:
+                start = 0
+                while start < len(sec):
+                    end = start + max_chunk_size
+                    chunks.append(sec[start:end].strip())
+                    start += max_chunk_size - overlap
+                current_chunk = ""
+            else:
+                current_chunk = sec
+
+    if current_chunk:
+        chunks.append(current_chunk)
+
     return chunks
 
 
@@ -97,7 +115,7 @@ async def sync_interview_vault(vault_dir: Path | None = None) -> dict[str, Any]:
     for file_path in all_files:
         try:
             parsed = parse_interview_file(file_path, target_dir)
-            chunks = chunk_text(parsed["content"])
+            chunks = markdown_section_chunker(parsed["content"])
             if not chunks:
                 continue
 

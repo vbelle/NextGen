@@ -6,9 +6,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from app import github_rag
 
 
-def test_chunk_text():
+def test_markdown_section_chunker():
     short = "GitHub repo text"
-    assert github_rag.chunk_text(short, chunk_size=100) == ["GitHub repo text"]
+    assert github_rag.markdown_section_chunker(short, max_chunk_size=100) == ["GitHub repo text"]
 
 
 def test_parse_github_file():

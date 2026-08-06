@@ -24,6 +24,7 @@ from __future__ import annotations
 import asyncio
 import os
 from pathlib import Path
+import re
 
 import chromadb
 from chromadb.api.models.Collection import Collection
@@ -169,4 +170,51 @@ async def query_store(store_name: str, query_text: str, top_k: int) -> list[dict
 
     documents = (result.get("documents") or [[]])[0]
     distances = (result.get("distances") or [[]])[0]
-    return [{"content": doc, "distance": dist} for doc, dist in zip(documents, distances)]
+    metadatas = (result.get("metadatas") or [[]])[0]
+    return [
+        {"content": doc, "distance": dist, "metadata": meta}
+        for doc, dist, meta in zip(documents, distances, metadatas)
+    ]
+
+
+async def hybrid_query_store(store_name: str, query_text: str, top_k: int = 10) -> list[dict]:
+    """Hybrid RAG Search: Combines Dense Vector Search + Keyword Ranker via
+    Reciprocal Rank Fusion (RRF)."""
+    # 1. Fetch dense vector search candidates (up to 25)
+    vector_results = await query_store(store_name, query_text, top_k=min(25, max(top_k * 2, 20)))
+
+    # Extract query keywords and split subwords (e.g., "capitalone" -> ["capitalone", "capital", "one"])
+    raw_words = [
+        w.lower().strip()
+        for w in re.findall(r"\b[a-zA-Z0-9_\-]{3,}\b", query_text)
+        if w.lower() not in {"the", "and", "for", "with", "that", "this", "from", "have", "give", "what"}
+    ]
+    keywords: set[str] = set(raw_words)
+    for rw in raw_words:
+        # Split merged words e.g. capitalone -> capital, one
+        sub_parts = re.findall(r"[a-zA-Z]{3,}", rw)
+        keywords.update(sub_parts)
+        if "capital" in rw:
+            keywords.add("capital")
+            keywords.add("one")
+
+    scores: dict[str, float] = {}
+    doc_map: dict[str, dict] = {}
+
+    # 2. Score vector search candidates (RRF rank)
+    for rank, item in enumerate(vector_results, 1):
+        content = item["content"]
+        doc_map[content] = item
+        scores[content] = scores.get(content, 0.0) + (1.0 / (60.0 + rank))
+
+    # 3. Score keyword matching across fetched candidates
+    for content, item in doc_map.items():
+        content_lower = content.lower()
+        keyword_hits = sum(1 for kw in keywords if kw in content_lower)
+        if keyword_hits > 0:
+            # Reward exact keyword occurrences heavily
+            scores[content] = scores.get(content, 0.0) + (keyword_hits * 0.25)
+
+    # 4. Sort documents by combined RRF score descending
+    sorted_docs = sorted(scores.keys(), key=lambda d: scores[d], reverse=True)
+    return [doc_map[d] for d in sorted_docs[:top_k]]

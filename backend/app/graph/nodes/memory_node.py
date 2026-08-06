@@ -18,7 +18,7 @@ from app.graph.schema import register_node_type
 from app.graph.state import GraphState
 from app.graph.templating import render_template
 
-DEFAULT_TOP_K = 5
+DEFAULT_TOP_K = 10
 
 
 class MemoryConfig(BaseModel):
@@ -30,7 +30,7 @@ class MemoryConfig(BaseModel):
 async def execute(node_id: str, config: dict, state: GraphState) -> dict:
     cfg = MemoryConfig(**config)
     rendered_query = render_template(cfg.query, state)
-    matches = await vectorstore.query_store(cfg.vector_store_ref, rendered_query, cfg.top_k)
+    matches = await vectorstore.hybrid_query_store(cfg.vector_store_ref, rendered_query, cfg.top_k)
     return {
         "node_outputs": {node_id: matches, "__latest__": matches},
         "last_output_port": {node_id: "default"},
