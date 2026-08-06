@@ -70,6 +70,18 @@ export function WorkflowList({
     }
   }
 
+  async function handleDeleteWorkflow(id: string, name: string) {
+    if (!window.confirm(`Are you sure you want to delete workflow '${name}'?`)) {
+      return;
+    }
+    try {
+      await api.deleteWorkflow(id, true);
+      loadWorkflows();
+    } catch {
+      alert(`Failed to delete workflow '${name}'`);
+    }
+  }
+
   return (
     <div className="ng-workflow-list">
       <div className="ng-toolbar">
@@ -143,13 +155,30 @@ export function WorkflowList({
       ) : (
         <ul>
           {workflows.map((w) => (
-            <li key={w.id}>
-              <button onClick={() => onOpenBuilder(w.id)}>{w.name}</button>
+            <li key={w.id} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <button onClick={() => onOpenBuilder(w.id)} style={{ flex: 1, textAlign: "left" }}>
+                {w.name}
+              </button>
               <button
                 className="ng-workflow-run"
                 onClick={() => onRunWorkflow(w.name)}
               >
                 ▶ Run
+              </button>
+              <button
+                onClick={() => handleDeleteWorkflow(w.id, w.name)}
+                style={{
+                  background: "#fee2e2",
+                  color: "#991b1b",
+                  border: "1px solid #fca5a5",
+                  borderRadius: "4px",
+                  padding: "4px 8px",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                }}
+                title="Delete Workflow"
+              >
+                🗑 Delete
               </button>
             </li>
           ))}

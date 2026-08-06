@@ -212,25 +212,33 @@ def activate_version(
 
 
 @router.delete("/{workflow_id}", status_code=204)
-def delete_workflow(workflow_id: str, session: Session = Depends(get_session)) -> None:
+def delete_workflow(
+    workflow_id: str, force: bool = False, session: Session = Depends(get_session)
+) -> None:
     workflow = session.get(Workflow, workflow_id)
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
-    version_ids = [
-        v.id
-        for v in session.exec(
-            select(WorkflowVersion).where(WorkflowVersion.workflow_id == workflow_id)
-        ).all()
-    ]
-    has_runs = (
-        version_ids
-        and session.exec(select(Run).where(Run.workflow_version_id.in_(version_ids))).first()
+    versions = session.exec(
+        select(WorkflowVersion).where(WorkflowVersion.workflow_id == workflow_id)
+    ).all()
+    version_ids = [v.id for v in versions]
+
+    runs = (
+        session.exec(select(Run).where(Run.workflow_version_id.in_(version_ids))).all()
+        if version_ids
+        else []
     )
-    if has_runs:
-        raise HTTPException(
-            status_code=409, detail="Cannot delete a workflow with run history (Constitution VII)"
-        )
-    for vid in version_ids:
-        session.delete(session.get(WorkflowVersion, vid))
+
+    if runs:
+        if not force:
+            raise HTTPException(
+                status_code=409,
+                detail="Cannot delete a workflow with run history. Pass ?force=true to force delete.",
+            )
+        for r in runs:
+            session.delete(r)
+
+    for v in versions:
+        session.delete(v)
     session.delete(workflow)
     session.commit()

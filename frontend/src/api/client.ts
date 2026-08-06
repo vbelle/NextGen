@@ -108,7 +108,13 @@ export const api = {
     request<{ authenticated: boolean }>("/api/auth/logout", { method: "POST" }),
 
   listWorkflows: () => request<WorkflowSummary[]>("/api/workflows"),
-  getWorkflow: (id: string) => request<WorkflowDetail>(`/api/workflows/${id}`),
+  getWorkflow: (id: string) =>
+    request<WorkflowDetail>(`/api/workflows/${id}`),
+
+  deleteWorkflow: (id: string, force: boolean = true) =>
+    request<void>(`/api/workflows/${id}?force=${force}`, {
+      method: "DELETE",
+    }),
   createWorkflow: (name: string, graph_json: GraphJson) =>
     request<WorkflowSummary>("/api/workflows", {
       method: "POST",
