@@ -85,13 +85,26 @@ def seed_default_workflows(session: Session) -> None:
                 session.add(wf)
                 session.commit()
             else:
-                # Update existing workflow active version graph if changed
                 active_ver = session.exec(
                     select(WorkflowVersion).where(WorkflowVersion.id == existing.active_version_id)
                 ).first()
-                if active_ver and active_ver.graph_json != graph_str:
-                    active_ver.graph_json = graph_str
-                    session.add(active_ver)
+                if not active_ver or active_ver.graph_json != graph_str:
+                    max_ver = session.exec(
+                        select(WorkflowVersion)
+                        .where(WorkflowVersion.workflow_id == existing.id)
+                        .order_by(WorkflowVersion.version_number.desc())
+                    ).first()
+                    next_ver_num = (max_ver.version_number + 1) if max_ver else 1
+
+                    new_ver = WorkflowVersion(
+                        workflow_id=existing.id,
+                        version_number=next_ver_num,
+                        graph_json=graph_str,
+                    )
+                    session.add(new_ver)
+                    session.flush()
+                    existing.active_version_id = new_ver.id
+                    session.add(existing)
                     session.commit()
         except Exception:
             pass
