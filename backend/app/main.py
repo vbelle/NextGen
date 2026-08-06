@@ -59,7 +59,11 @@ def seed_default_workflows(session: Session) -> None:
     from app.models.workflow import Workflow, WorkflowVersion
     from sqlmodel import select
 
-    workflow_files = ["interview_knowledge_search.json", "obsidian_vault_search.json"]
+    workflow_files = [
+        "interview_knowledge_search.json",
+        "obsidian_vault_search.json",
+        "multi_agent_command_center.json",
+    ]
     for fname in workflow_files:
         fpath = Path(fname)
         if not fpath.exists():

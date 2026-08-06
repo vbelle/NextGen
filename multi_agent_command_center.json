@@ -1,0 +1,146 @@
+{
+  "name": "multi_agent_command_center",
+  "graph_json": {
+    "nodes": [
+      {
+        "id": "user-input",
+        "type": "input",
+        "name": "User Request",
+        "config": {
+          "prompt": "Enter your complex engineering or interview question (type 'exit' to quit):",
+          "required": true
+        },
+        "position": {
+          "x": 100,
+          "y": 200
+        }
+      },
+      {
+        "id": "decision-exit",
+        "type": "decision",
+        "name": "Check Exit",
+        "config": {
+          "left": "{{User Request}}",
+          "operator": "contains",
+          "right": "exit"
+        },
+        "position": {
+          "x": 300,
+          "y": 200
+        }
+      },
+      {
+        "id": "exit-msg",
+        "type": "response",
+        "name": "Exit Session",
+        "config": {
+          "content": "👋 Multi-Agent Command Center session closed."
+        },
+        "position": {
+          "x": 300,
+          "y": 400
+        }
+      },
+      {
+        "id": "agent-rag-researcher",
+        "type": "memory",
+        "name": "RAG Researcher Agent",
+        "config": {
+          "vector_store_ref": "interview_vault",
+          "query": "{{User Request}}",
+          "top_k": 10
+        },
+        "position": {
+          "x": 550,
+          "y": 100
+        }
+      },
+      {
+        "id": "agent-system-architect",
+        "type": "llm",
+        "name": "System Architect Agent",
+        "config": {
+          "provider": "ollama",
+          "model": "llama3.2",
+          "prompt": "You are a Principal System Architect. Analyze the following request from a high-level architectural, scalability, and system design perspective:\n\nUser Request: {{User Request}}\n\nProvide key architectural trade-offs, components, and design patterns.",
+          "timeout_seconds": 180
+        },
+        "position": {
+          "x": 550,
+          "y": 300
+        }
+      },
+      {
+        "id": "agent-synthesis-critic",
+        "type": "llm",
+        "name": "Synthesis & Critic Agent",
+        "config": {
+          "provider": "ollama",
+          "model": "llama3.2",
+          "prompt": "You are the Command Center Lead. Synthesize the findings from your two specialist agents into a final, polished, expert response:\n\n=== RAG RESEARCHER FINDINGS ===\n{{RAG Researcher Agent}}\n\n=== SYSTEM ARCHITECT FINDINGS ===\n{{System Architect Agent}}\n\n=== ORIGINAL REQUEST ===\n{{User Request}}\n\nProvide a comprehensive, clear, and actionable final answer.",
+          "timeout_seconds": 180
+        },
+        "position": {
+          "x": 850,
+          "y": 200
+        }
+      },
+      {
+        "id": "final-response",
+        "type": "response",
+        "name": "Display Final Command Answer",
+        "config": {
+          "content": "{{Synthesis & Critic Agent}}"
+        },
+        "position": {
+          "x": 1100,
+          "y": 200
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "user-input",
+        "source_port": "default",
+        "target": "decision-exit"
+      },
+      {
+        "id": "e-exit-true",
+        "source": "decision-exit",
+        "source_port": "true",
+        "target": "exit-msg"
+      },
+      {
+        "id": "e-exit-false-1",
+        "source": "decision-exit",
+        "source_port": "false",
+        "target": "agent-rag-researcher"
+      },
+      {
+        "id": "e-exit-false-2",
+        "source": "decision-exit",
+        "source_port": "false",
+        "target": "agent-system-architect"
+      },
+      {
+        "id": "e-rag-to-synth",
+        "source": "agent-rag-researcher",
+        "source_port": "default",
+        "target": "agent-synthesis-critic"
+      },
+      {
+        "id": "e-arch-to-synth",
+        "source": "agent-system-architect",
+        "source_port": "success",
+        "target": "agent-synthesis-critic"
+      },
+      {
+        "id": "e-synth-to-resp",
+        "source": "agent-synthesis-critic",
+        "source_port": "success",
+        "target": "final-response"
+      }
+    ]
+  }
+}
