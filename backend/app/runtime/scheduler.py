@@ -133,6 +133,15 @@ async def _run_interview_sync_job():
         logger.error("Automated daily Interview vault sync failed: %s", exc)
 
 
+async def _run_github_sync_job():
+    from app.github_rag import sync_github_repo
+
+    try:
+        await sync_github_repo(owner="vbelle", repo="Interview", target_collection="interview_vault")
+    except Exception as exc:
+        logger.error("Automated daily GitHub RAG sync failed: %s", exc)
+
+
 def start_scheduler() -> None:
     """Starts the background cron scheduler if not already running."""
     scheduler = _get_scheduler()
@@ -163,5 +172,17 @@ def start_scheduler() -> None:
         logger.info("Scheduled daily 3 AM Interview Vault RAG sync job")
     except Exception as exc:
         logger.warning("Could not schedule daily Interview sync job: %s", exc)
+
+    # Schedule daily 3:30 AM GitHub RAG sync
+    try:
+        scheduler.add_job(
+            _run_github_sync_job,
+            trigger=CronTrigger.from_crontab("30 3 * * *"),
+            id="github_daily_sync",
+            replace_existing=True,
+        )
+        logger.info("Scheduled daily 3:30 AM GitHub RAG sync job")
+    except Exception as exc:
+        logger.warning("Could not schedule daily GitHub sync job: %s", exc)
 
     reload_cron_triggers()

@@ -9,6 +9,7 @@ import { CustomToolManager } from "./tools/CustomToolManager";
 import { TriggerManager } from "./triggers/TriggerManager";
 import { ObsidianManager } from "./obsidian/ObsidianManager";
 import { InterviewManager } from "./interview/InterviewManager";
+import { GitHubSyncManager } from "./github/GitHubSyncManager";
 import { api, ApiError, type WorkflowDetail } from "./api/client";
 
 type View = { name: "list" } | { name: "builder"; workflowId?: string };
@@ -26,6 +27,7 @@ export function App() {
   const [triggersOpen, setTriggersOpen] = useState(false);
   const [obsidianOpen, setObsidianOpen] = useState(false);
   const [interviewOpen, setInterviewOpen] = useState(false);
+  const [githubOpen, setGithubOpen] = useState(false);
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const [autoStartWorkflow, setAutoStartWorkflow] = useState<string | null>(
     null,
@@ -72,6 +74,7 @@ export function App() {
         <button onClick={() => setTriggersOpen(true)}>Triggers</button>
         <button onClick={() => setObsidianOpen(true)}>Obsidian Vault</button>
         <button onClick={() => setInterviewOpen(true)}>Interview Vault</button>
+        <button onClick={() => setGithubOpen(true)}>GitHub Sync</button>
       </nav>
       <main className="ng-main">
         {view.name === "list" && (
@@ -145,6 +148,10 @@ export function App() {
       <InterviewManager
         open={interviewOpen}
         onClose={() => setInterviewOpen(false)}
+      />
+      <GitHubSyncManager
+        open={githubOpen}
+        onClose={() => setGithubOpen(false)}
       />
     </div>
   );

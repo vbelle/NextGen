@@ -274,6 +274,44 @@ export const api = {
     });
   },
 
+  getGitHubStatus: (owner: string = "vbelle", repo: string = "Interview") =>
+    request<{
+      owner: string;
+      repo: string;
+      branch: string;
+      files_parsed: number;
+      chunks_indexed: number;
+      last_synced_at: string | null;
+      status: string;
+    }>(`/api/github/status?owner=${owner}&repo=${repo}`),
+
+  syncGitHubRepo: (
+    owner: string,
+    repo: string,
+    branch?: string,
+    token?: string,
+    target_collection: string = "interview_vault",
+  ) =>
+    request<{
+      owner: string;
+      repo: string;
+      branch: string;
+      target_collection: string;
+      files_parsed: number;
+      chunks_indexed: number;
+      last_synced_at: string;
+      status: string;
+    }>("/api/github/sync", {
+      method: "POST",
+      body: JSON.stringify({
+        owner,
+        repo,
+        branch,
+        token,
+        target_collection,
+      }),
+    }),
+
   codegenLangGraph: (graph_json: GraphJson) =>
     request<{ code: string }>("/api/codegen/langgraph", {
       method: "POST",

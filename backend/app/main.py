@@ -13,6 +13,7 @@ from app.api import (
     codegen,
     credentials,
     custom_tools,
+    github_routes,
     interview_routes,
     obsidian_routes,
     runs,
@@ -41,6 +42,7 @@ app.include_router(custom_tools.router)
 app.include_router(triggers.router)
 app.include_router(obsidian_routes.router)
 app.include_router(interview_routes.router)
+app.include_router(github_routes.router)
 app.include_router(codegen.router)
 app.include_router(chat_websocket.router)
 
