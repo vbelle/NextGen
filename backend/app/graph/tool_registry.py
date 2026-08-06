@@ -61,6 +61,15 @@ class InterviewSearchArgs(BaseModel):
     )
 
 
+class ObsidianSearchArgs(BaseModel):
+    query: str = Field(
+        description="Search query for personal notes, Markdown pages, or topics in Obsidian vault"
+    )
+    top_k: int = Field(
+        default=5, ge=1, le=10, description="Number of results to return (1-10, default 5)"
+    )
+
+
 _WMO_CODES: dict[int, str] = {
     0: "clear sky",
     1: "mainly clear",
@@ -258,6 +267,7 @@ def interview_search(query: str, top_k: int = 5) -> str:
         if loop and loop.is_running():
             # In async contexts, run in a separate thread or reuse loop
             import concurrent.futures
+
             with concurrent.futures.ThreadPoolExecutor() as pool:
                 results = pool.submit(
                     lambda: asyncio.run(vectorstore.query_store(INTERVIEW_COLLECTION, query, top_k))
@@ -278,6 +288,40 @@ def interview_search(query: str, top_k: int = 5) -> str:
     return "\n\n".join(parts)
 
 
+def obsidian_search(query: str, top_k: int = 5) -> str:
+    import asyncio
+    from app import vectorstore
+    from app.obsidian import OBSIDIAN_COLLECTION
+
+    try:
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop and loop.is_running():
+            import concurrent.futures
+
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                results = pool.submit(
+                    lambda: asyncio.run(vectorstore.query_store(OBSIDIAN_COLLECTION, query, top_k))
+                ).result()
+        else:
+            results = asyncio.run(vectorstore.query_store(OBSIDIAN_COLLECTION, query, top_k))
+    except Exception as exc:
+        return f"Obsidian Vault RAG query failed: {exc}. Ensure the Obsidian vault has been synced!"
+
+    if not results:
+        return f"No Obsidian note matches found for query '{query}'."
+
+    parts: list[str] = []
+    for idx, item in enumerate(results, 1):
+        content = item.get("content", "").strip()
+        parts.append(f"--- Note Match {idx} ---\n{content}")
+
+    return "\n\n".join(parts)
+
+
 class ToolImplementation:
     def __init__(self, args_schema: type[BaseModel], func: Callable[..., str]):
         self.args_schema = args_schema
@@ -292,6 +336,7 @@ _REGISTRY: dict[str, ToolImplementation] = {
     "google_search": ToolImplementation(GoogleSearchArgs, google_search),
     "yfinance_quote": ToolImplementation(YahooFinanceArgs, yfinance_quote),
     "interview_search": ToolImplementation(InterviewSearchArgs, interview_search),
+    "obsidian_search": ToolImplementation(ObsidianSearchArgs, obsidian_search),
 }
 
 

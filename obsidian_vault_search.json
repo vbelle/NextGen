@@ -16,9 +16,23 @@
         }
       },
       {
+        "id": "tool-1",
+        "type": "tool",
+        "name": "Obsidian Search Tool",
+        "config": {
+          "function_name": "obsidian_search",
+          "description": "Searches the user's Obsidian Vault for personal notes, Markdown documents, and topics.",
+          "implementation_ref": "obsidian_search"
+        },
+        "position": {
+          "x": 100,
+          "y": 350
+        }
+      },
+      {
         "id": "memory-1",
         "type": "memory",
-        "name": "Obsidian Vault RAG Search",
+        "name": "Obsidian Vault Memory RAG",
         "config": {
           "vector_store_ref": "obsidian_vault",
           "query": "{{previous}}",
@@ -36,7 +50,7 @@
         "config": {
           "provider": "ollama",
           "model": "llama3.2",
-          "prompt": "You are a personal knowledge assistant. Use the following retrieved notes and passages from the user's Obsidian vault to answer their question:\n\n{{previous}}",
+          "prompt": "You are a personal knowledge assistant. You have access to the obsidian_search tool and the following pre-retrieved note context from the user's Obsidian vault:\n\n{{previous}}\n\nAnswer the user's question accurately based on their notes.",
           "timeout_seconds": 180
         },
         "position": {
@@ -63,6 +77,12 @@
         "source": "input-1",
         "source_port": "default",
         "target": "memory-1"
+      },
+      {
+        "id": "e-tool-llm",
+        "source": "tool-1",
+        "source_port": "default",
+        "target": "llm-1"
       },
       {
         "id": "e-memory-llm",

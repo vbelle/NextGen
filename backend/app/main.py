@@ -3,10 +3,13 @@ image) the built frontend as static files."""
 
 from __future__ import annotations
 
+import json
 import os
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from sqlmodel import Session
 
 from app.api import (
     auth_routes,
@@ -52,6 +55,48 @@ def health() -> dict:
     return {"status": "ok"}
 
 
+def seed_default_workflows(session: Session) -> None:
+    from app.models.workflow import Workflow, WorkflowVersion
+    from sqlmodel import select
+
+    workflow_files = ["interview_knowledge_search.json", "obsidian_vault_search.json"]
+    for fname in workflow_files:
+        fpath = Path(fname)
+        if not fpath.exists():
+            continue
+        try:
+            with open(fpath) as f:
+                data = json.load(f)
+            wf_name = data.get("name")
+            graph_json = data.get("graph_json")
+            if not wf_name or not graph_json:
+                continue
+
+            graph_str = json.dumps(graph_json)
+            existing = session.exec(select(Workflow).where(Workflow.name == wf_name)).first()
+            if not existing:
+                wf = Workflow(name=wf_name)
+                session.add(wf)
+                session.flush()
+                ver = WorkflowVersion(workflow_id=wf.id, version_number=1, graph_json=graph_str)
+                session.add(ver)
+                session.flush()
+                wf.active_version_id = ver.id
+                session.add(wf)
+                session.commit()
+            else:
+                # Update existing workflow active version graph if changed
+                active_ver = session.exec(
+                    select(WorkflowVersion).where(WorkflowVersion.id == existing.active_version_id)
+                ).first()
+                if active_ver and active_ver.graph_json != graph_str:
+                    active_ver.graph_json = graph_str
+                    session.add(active_ver)
+                    session.commit()
+        except Exception:
+            pass
+
+
 @app.on_event("startup")
 def on_startup() -> None:
     init_db()
@@ -59,6 +104,7 @@ def on_startup() -> None:
     session = next(session_gen)
     try:
         reconcile_stale_runs(session)
+        seed_default_workflows(session)
     finally:
         session.close()
     start_scheduler()

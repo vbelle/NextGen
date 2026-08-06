@@ -16,9 +16,23 @@
         }
       },
       {
+        "id": "tool-1",
+        "type": "tool",
+        "name": "Interview Search Tool",
+        "config": {
+          "function_name": "interview_search",
+          "description": "Searches the candidate's Interview Knowledge Vault (vbelle/Interview) for prep notes, JDs, resume details, and cheatsheets.",
+          "implementation_ref": "interview_search"
+        },
+        "position": {
+          "x": 100,
+          "y": 350
+        }
+      },
+      {
         "id": "memory-1",
         "type": "memory",
-        "name": "Interview Vault RAG Search",
+        "name": "Interview Vault Memory RAG",
         "config": {
           "vector_store_ref": "interview_vault",
           "query": "{{previous}}",
@@ -36,7 +50,7 @@
         "config": {
           "provider": "ollama",
           "model": "llama3.2",
-          "prompt": "You are a senior career advisor and technical interview coach. Use the following retrieved notes, resume details, and interview cheatsheets from the candidate's repository to answer their question thoroughly and accurately:\n\n{{previous}}",
+          "prompt": "You are a senior career advisor and technical interview coach. You have access to the interview_search tool and the following pre-retrieved context from the candidate's vbelle/Interview repository:\n\n{{previous}}\n\nAnswer the user's request thoroughly and accurately.",
           "timeout_seconds": 180
         },
         "position": {
@@ -63,6 +77,12 @@
         "source": "input-1",
         "source_port": "default",
         "target": "memory-1"
+      },
+      {
+        "id": "e-tool-llm",
+        "source": "tool-1",
+        "source_port": "default",
+        "target": "llm-1"
       },
       {
         "id": "e-memory-llm",
