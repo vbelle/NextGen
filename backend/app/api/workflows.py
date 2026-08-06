@@ -21,6 +21,11 @@ class WorkflowCreate(BaseModel):
     graph_json: dict
 
 
+class WorkflowGenerate(BaseModel):
+    prompt: str
+    name: str | None = None
+
+
 class WorkflowVersionCreate(BaseModel):
     graph_json: dict
 
@@ -90,6 +95,50 @@ def create_workflow(body: WorkflowCreate, session: Session = Depends(get_session
 
     version = WorkflowVersion(
         workflow_id=workflow.id, version_number=1, graph_json=json.dumps(body.graph_json)
+    )
+    session.add(version)
+    session.flush()
+
+    workflow.active_version_id = version.id
+    session.add(workflow)
+    session.commit()
+    session.refresh(workflow)
+    return WorkflowOut(
+        id=workflow.id,
+        name=workflow.name,
+        active_version_id=workflow.active_version_id,
+        created_at=workflow.created_at.isoformat(),
+    )
+
+
+@router.post("/generate", response_model=WorkflowOut, status_code=201)
+async def generate_workflow(
+    body: WorkflowGenerate, session: Session = Depends(get_session)
+) -> WorkflowOut:
+    from app.graph.ai_generator import generate_workflow_from_prompt
+
+    try:
+        generated = await generate_workflow_from_prompt(body.prompt, body.name)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=422, detail=f"Failed to compile AI workflow: {exc}"
+        )
+
+    wf_name = generated["name"]
+    graph_json = generated["graph_json"]
+
+    existing = session.exec(select(Workflow).where(Workflow.name == wf_name)).first()
+    if existing:
+        wf_name = f"{wf_name}_{int(datetime.now().timestamp())}"
+
+    _validate_or_422(graph_json)
+
+    workflow = Workflow(name=wf_name)
+    session.add(workflow)
+    session.flush()
+
+    version = WorkflowVersion(
+        workflow_id=workflow.id, version_number=1, graph_json=json.dumps(graph_json)
     )
     session.add(version)
     session.flush()

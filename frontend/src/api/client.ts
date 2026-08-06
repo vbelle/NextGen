@@ -120,6 +120,12 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ name, graph_json }),
     }),
+
+  generateWorkflow: (prompt: str, name?: str) =>
+    request<WorkflowSummary>("/api/workflows/generate", {
+      method: "POST",
+      body: JSON.stringify({ prompt, name }),
+    }),
   saveVersion: (workflowId: string, graph_json: GraphJson) =>
     request<{ id: string; version_number: number; created_at: string }>(
       `/api/workflows/${workflowId}/versions`,

@@ -82,13 +82,105 @@ export function WorkflowList({
     }
   }
 
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiName, setAiName] = useState("");
+  const [aiGenerating, setAiGenerating] = useState(false);
+
+  async function handleAiGenerateSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!aiPrompt.trim()) {
+      setError("Please enter a natural language prompt describing your workflow");
+      return;
+    }
+    setError(null);
+    setAiGenerating(true);
+    try {
+      const generatedWf = await api.generateWorkflow(
+        aiPrompt.trim(),
+        aiName.trim() || undefined
+      );
+      setAiOpen(false);
+      setAiPrompt("");
+      setAiName("");
+      loadWorkflows();
+      onOpenBuilder(generatedWf.id);
+    } catch (err: any) {
+      const msg = err.body?.detail || err.message || "AI generation failed";
+      setError(typeof msg === "string" ? msg : JSON.stringify(msg));
+    } finally {
+      setAiGenerating(false);
+    }
+  }
+
   return (
     <div className="ng-workflow-list">
       <div className="ng-toolbar">
         <button onClick={() => onOpenBuilder(undefined)}>+ New workflow</button>
+        <button onClick={() => setAiOpen(true)} style={{ background: "#7c3aed", color: "#fff" }}>
+          ✨ AI Generate Workflow
+        </button>
         <button onClick={() => setImportOpen(true)}>📥 Import workflow</button>
         <button onClick={onOpenChat}>Open chat</button>
       </div>
+
+      {aiOpen && (
+        <div
+          className="ng-code-overlay"
+          onClick={() => !aiGenerating && setAiOpen(false)}
+          role="presentation"
+        >
+          <div
+            className="ng-cred-modal"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+          >
+            <div className="ng-code-modal-header">
+              <strong>✨ AI Workflow Generator</strong>
+              <button disabled={aiGenerating} onClick={() => setAiOpen(false)}>
+                ✕ Close
+              </button>
+            </div>
+            <form className="ng-cred-form" onSubmit={handleAiGenerateSubmit}>
+              <div>
+                <label>Workflow Name (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. multi_agent_researcher"
+                  value={aiName}
+                  onChange={(e) => setAiName(e.target.value)}
+                  disabled={aiGenerating}
+                />
+              </div>
+              <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+                <label>Describe the Workflow & Agents in Plain English</label>
+                <textarea
+                  style={{
+                    width: "100%",
+                    height: "150px",
+                    fontFamily: "inherit",
+                    fontSize: "13px",
+                    padding: "8px",
+                  }}
+                  placeholder="e.g. Build a 3-agent team: a RAG Memory Researcher that searches Obsidian, a System Architect agent, and a Synthesis Critic that consolidates their findings..."
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  disabled={aiGenerating}
+                />
+              </div>
+              {error && <p className="ng-cred-error">{error}</p>}
+              <button
+                type="submit"
+                className="ng-cred-submit"
+                disabled={aiGenerating}
+                style={{ background: "#7c3aed", color: "#fff" }}
+              >
+                {aiGenerating ? "⚡ Generating AI Graph & Wiring Nodes..." : "✨ Generate & Open Workflow"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {importOpen && (
         <div
