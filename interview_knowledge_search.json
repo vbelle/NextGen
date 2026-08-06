@@ -1,0 +1,87 @@
+{
+  "name": "interview_knowledge_search",
+  "graph_json": {
+    "nodes": [
+      {
+        "id": "input-1",
+        "type": "input",
+        "name": "User Question",
+        "config": {
+          "prompt": "What interview question, company, system design, or prep topic would you like to search?",
+          "required": true
+        },
+        "position": {
+          "x": 100,
+          "y": 150
+        }
+      },
+      {
+        "id": "memory-1",
+        "type": "memory",
+        "name": "Interview Vault RAG Search",
+        "config": {
+          "vector_store_ref": "interview_vault",
+          "query": "{{previous}}",
+          "top_k": 5
+        },
+        "position": {
+          "x": 350,
+          "y": 150
+        }
+      },
+      {
+        "id": "llm-1",
+        "type": "llm",
+        "name": "Grounded Interview Assistant",
+        "config": {
+          "provider": "ollama",
+          "model": "llama3.2",
+          "prompt": "You are a senior career advisor and technical interview coach. Use the following retrieved notes, resume details, and interview cheatsheets from the candidate's repository to answer their question thoroughly and accurately:\n\n{{previous}}",
+          "timeout_seconds": 180
+        },
+        "position": {
+          "x": 650,
+          "y": 150
+        }
+      },
+      {
+        "id": "response-1",
+        "type": "response",
+        "name": "Display Answer",
+        "config": {
+          "content": "{{previous}}"
+        },
+        "position": {
+          "x": 950,
+          "y": 150
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-input-memory",
+        "source": "input-1",
+        "source_port": "default",
+        "target": "memory-1"
+      },
+      {
+        "id": "e-memory-llm",
+        "source": "memory-1",
+        "source_port": "default",
+        "target": "llm-1"
+      },
+      {
+        "id": "e-llm-success",
+        "source": "llm-1",
+        "source_port": "success",
+        "target": "response-1"
+      },
+      {
+        "id": "e-llm-failure",
+        "source": "llm-1",
+        "source_port": "failure",
+        "target": "response-1"
+      }
+    ]
+  }
+}
