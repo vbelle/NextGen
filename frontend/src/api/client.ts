@@ -258,6 +258,22 @@ export const api = {
       collection_name: string;
     }>("/api/interview/sync", { method: "POST" }),
 
+  uploadInterviewFile: (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return request<{
+      vault_path: string;
+      total_files: number;
+      last_synced_at: string | null;
+      files_parsed: number;
+      chunks_indexed: number;
+      collection_name: string;
+    }>("/api/interview/upload", {
+      method: "POST",
+      body: formData,
+    });
+  },
+
   codegenLangGraph: (graph_json: GraphJson) =>
     request<{ code: string }>("/api/codegen/langgraph", {
       method: "POST",

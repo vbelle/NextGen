@@ -14,8 +14,11 @@ services:
       LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
       LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
       LANGFUSE_HOST: ${LANGFUSE_HOST:-https://cloud.langfuse.com}
+      INTERVIEW_VAULT_PATH: ${INTERVIEW_VAULT_PATH:-/data/interview_vault}
+      OBSIDIAN_VAULT_PATH: ${OBSIDIAN_VAULT_PATH:-/data/obsidian_vault}
     volumes:
       - nextgen-data:/data
+      - ${HOST_INTERVIEW_PATH:-/tmp/interview}:/data/interview_vault:ro
     depends_on:
       - ollama
     restart: unless-stopped

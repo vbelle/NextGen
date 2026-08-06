@@ -19,6 +19,7 @@ export function InterviewManager({ open, onClose }: Props) {
   const [status, setStatus] = useState<InterviewStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
   function loadStatus() {
@@ -48,6 +49,24 @@ export function InterviewManager({ open, onClose }: Props) {
       setMessage("Failed to sync Interview vault.");
     } finally {
       setSyncing(false);
+    }
+  }
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    setMessage(null);
+    try {
+      const updated = await api.uploadInterviewFile(file);
+      setStatus(updated);
+      setMessage(`✓ Uploaded '${file.name}' and indexed into '${updated.collection_name}'!`);
+    } catch {
+      setMessage(`Failed to upload '${file.name}'.`);
+    } finally {
+      setUploading(false);
+      e.target.value = "";
     }
   }
 
@@ -95,9 +114,24 @@ export function InterviewManager({ open, onClose }: Props) {
             </div>
           ) : null}
 
+          {/* Direct File Upload */}
+          <div style={{ marginBottom: "16px", border: "1px dashed #cbd5e1", padding: "12px", borderRadius: "6px", textAlign: "center" }}>
+            <label style={{ display: "block", marginBottom: "6px", fontWeight: "bold", color: "#334155" }}>
+              📤 Upload Note / Job Description / Resume File (.md, .txt)
+            </label>
+            <input
+              type="file"
+              accept=".md,.txt,.js,.json"
+              onChange={handleFileUpload}
+              disabled={uploading || syncing}
+              style={{ fontSize: "12px" }}
+            />
+            {uploading && <p style={{ fontSize: "11px", color: "#2563eb", margin: "4px 0 0 0" }}>Uploading & indexing file…</p>}
+          </div>
+
           <button
             onClick={handleSync}
-            disabled={syncing}
+            disabled={syncing || uploading}
             className="ng-cred-submit"
             style={{ width: "100%", padding: "10px", fontSize: "14px", fontWeight: "bold" }}
           >
