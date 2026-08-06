@@ -61,7 +61,7 @@
         "name": "Obsidian Vault Memory RAG",
         "config": {
           "vector_store_ref": "obsidian_vault",
-          "query": "{{previous}}",
+          "query": "{{input-1}}",
           "top_k": 10
         },
         "position": {
@@ -76,7 +76,7 @@
         "config": {
           "provider": "ollama",
           "model": "llama3.2",
-          "prompt": "You are a personal knowledge assistant. You have access to the obsidian_search tool and the following pre-retrieved note context from the user's Obsidian vault:\n\n{{previous}}\n\nAnswer the user's question accurately based on their notes.",
+          "prompt": "You are a personal knowledge assistant. You have access to the obsidian_search tool and the following retrieved note context from the user's Obsidian vault:\n\n=== RETRIEVED OBSIDIAN NOTES ===\n{{memory-1}}\n\n=== TOOL AVAILABILITY ===\n{{tool-1}}\n\n=== USER QUESTION ===\n{{input-1}}\n\nAnswer the user's question accurately based on their notes.",
           "timeout_seconds": 180
         },
         "position": {

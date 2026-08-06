@@ -61,7 +61,7 @@
         "name": "Interview Vault Memory RAG",
         "config": {
           "vector_store_ref": "interview_vault",
-          "query": "{{previous}}",
+          "query": "{{input-1}}",
           "top_k": 10
         },
         "position": {
@@ -76,7 +76,7 @@
         "config": {
           "provider": "ollama",
           "model": "llama3.2",
-          "prompt": "You are a senior career advisor and technical interview coach. You have access to the interview_search tool and the following pre-retrieved context from the candidate's vbelle/Interview repository:\n\n{{previous}}\n\nAnswer the user's request thoroughly and accurately based on the retrieved context.",
+          "prompt": "You are a senior career advisor and technical interview coach. Below is the retrieved knowledge and tools from the candidate's vbelle/Interview repository:\n\n=== RETRIEVED MEMORY NOTES & JDS ===\n{{memory-1}}\n\n=== TOOL AVAILABILITY ===\n{{tool-1}}\n\n=== USER QUESTION ===\n{{input-1}}\n\nAnswer the candidate's question thoroughly and accurately based on the retrieved context above.",
           "timeout_seconds": 180
         },
         "position": {
