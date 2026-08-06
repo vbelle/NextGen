@@ -29,7 +29,11 @@ import chromadb
 from chromadb.api.models.Collection import Collection
 from chromadb.utils.embedding_functions import OllamaEmbeddingFunction
 
+import httpx
+from app.logging import get_logger
 from app.providers.ollama_provider import OLLAMA_SEMAPHORE
+
+logger = get_logger(__name__)
 
 DEFAULT_EMBEDDING_MODEL = "nomic-embed-text"
 
@@ -87,7 +91,37 @@ def get_or_create_store(name: str) -> Collection:
     )
 
 
+async def ensure_embedding_model_available() -> None:
+    if _embedding_fn_override is not None:
+        return
+    base_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
+    model_name = os.environ.get("NEXTGEN_EMBEDDING_MODEL", DEFAULT_EMBEDDING_MODEL)
+
+    try:
+        async with httpx.AsyncClient(timeout=180.0) as client:
+            tags_resp = await client.get(f"{base_url}/api/tags")
+            if tags_resp.status_code == 200:
+                models = [
+                    m.get("name", "").split(":")[0] for m in tags_resp.json().get("models", [])
+                ]
+                if model_name.split(":")[0] in models:
+                    return
+
+            logger.info(
+                "Embedding model '%s' not found in Ollama — automatically pulling now...",
+                model_name,
+            )
+            pull_resp = await client.post(
+                f"{base_url}/api/pull", json={"name": model_name, "stream": False}
+            )
+            pull_resp.raise_for_status()
+            logger.info("Successfully pulled embedding model '%s'", model_name)
+    except Exception as exc:
+        logger.warning("Could not auto-pull embedding model '%s': %s", model_name, exc)
+
+
 async def add_documents(store_name: str, documents: list[str]) -> None:
+    await ensure_embedding_model_available()
     collection = _get_existing_collection(store_name)
     ids = [f"{store_name}-{collection.count() + i}" for i in range(len(documents))]
 
@@ -98,6 +132,7 @@ async def add_documents(store_name: str, documents: list[str]) -> None:
 async def add_documents_with_metadata(
     store_name: str, documents: list[str], metadatas: list[dict], ids: list[str]
 ) -> None:
+    await ensure_embedding_model_available()
     collection = get_or_create_store(store_name)
     async with OLLAMA_SEMAPHORE:
         await asyncio.to_thread(
@@ -106,6 +141,7 @@ async def add_documents_with_metadata(
 
 
 async def query_store(store_name: str, query_text: str, top_k: int) -> list[dict]:
+    await ensure_embedding_model_available()
     collection = _get_existing_collection(store_name)
 
     async with OLLAMA_SEMAPHORE:
