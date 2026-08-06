@@ -7,13 +7,14 @@ import re
 
 from app.graph.state import GraphState
 
-_VAR_PATTERN = re.compile(r"\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}")
+_VAR_PATTERN = re.compile(r"\{\{\s*([A-Za-z0-9_\-\s]+?)\s*\}\}")
+_WHOLE_REF_PATTERN = re.compile(r"^\{\{\s*([A-Za-z0-9_\-\s]+?)\s*\}\}$")
+
+RESERVED_PREVIOUS = "previous"
 
 
 class VariableNotSetError(Exception):
-    """Raised when {{name}} references a Variable that never executed in this run.
-    FR-025: this MUST be treated as a failure of the *referencing* node, not a
-    silent empty-string substitution."""
+    """Raised when {{name}} references a Variable/Node that never executed in this run."""
 
     def __init__(self, name: str):
         self.name = name
@@ -26,26 +27,27 @@ def _stringify(value) -> str:
     return json.dumps(value)
 
 
-RESERVED_PREVIOUS = "previous"
+def _get_val(name: str, state: GraphState):
+    node_outputs = state.get("node_outputs", {})
+    variables = state.get("variables", {})
+
+    if name == RESERVED_PREVIOUS:
+        return node_outputs.get("__latest__")
+    if name in variables:
+        return variables[name]
+    if name in node_outputs:
+        return node_outputs[name]
+    if name.lower() in node_outputs:
+        return node_outputs[name.lower()]
+
+    raise VariableNotSetError(name)
 
 
 def render_template(text: str, state: GraphState) -> str:
-    """Resolve every {{name}} in `text`. `{{previous}}` is a reserved name that
-    always resolves to the most recently completed node's output (direct upstream
-    reference, no Variable node required — this is what a minimal Input -> LLM ->
-    Response chain uses). Any other {{name}} resolves against state['variables']
-    (explicit Variable-node writes, FR-023) and raises VariableNotSetError if unset
-    (FR-025) — never a silent empty string."""
-    variables = state.get("variables", {})
-    node_outputs = state.get("node_outputs", {})
-
     def _replace(match: re.Match) -> str:
-        name = match.group(1)
-        if name == RESERVED_PREVIOUS:
-            return _stringify(node_outputs.get("__latest__", ""))
-        if name not in variables:
-            raise VariableNotSetError(name)
-        return _stringify(variables[name])
+        name = match.group(1).strip()
+        val = _get_val(name, state)
+        return _stringify(val)
 
     return _VAR_PATTERN.sub(_replace, text)
 
@@ -54,27 +56,12 @@ def has_variable_refs(text: str) -> bool:
     return bool(_VAR_PATTERN.search(text))
 
 
-_WHOLE_REF_PATTERN = re.compile(r"^\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}$")
-
-
 def resolve_value_reference(ref: str, state: GraphState):
-    """Resolves a reference field that is EXACTLY one {{name}} placeholder (not
-    embedded in surrounding text, unlike render_template) to its actual
-    underlying Python value — used where a node needs a real value such as a
-    list rather than a rendered string (e.g. the Loop node's collection_ref,
-    contracts/graph-schema.md). Raises VariableNotSetError for an unset
-    {{variable}}, same as render_template; raises ValueError if `ref` isn't a
-    single whole placeholder."""
     match = _WHOLE_REF_PATTERN.match(ref.strip())
     if not match:
         raise ValueError(
             f"'{ref}' must be exactly {{{{previous}}}} or {{{{variable_name}}}} to "
             "resolve to a value — not embedded in surrounding text"
         )
-    name = match.group(1)
-    if name == RESERVED_PREVIOUS:
-        return state.get("node_outputs", {}).get("__latest__")
-    variables = state.get("variables", {})
-    if name not in variables:
-        raise VariableNotSetError(name)
-    return variables[name]
+    name = match.group(1).strip()
+    return _get_val(name, state)

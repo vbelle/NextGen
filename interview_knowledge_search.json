@@ -20,7 +20,7 @@
         "type": "decision",
         "name": "Check for Exit",
         "config": {
-          "left": "{{previous}}",
+          "left": "{{User Question}}",
           "operator": "contains",
           "right": "exit"
         },
@@ -61,7 +61,7 @@
         "name": "Interview Vault Memory RAG",
         "config": {
           "vector_store_ref": "interview_vault",
-          "query": "{{input-1}}",
+          "query": "{{User Question}}",
           "top_k": 10
         },
         "position": {
@@ -76,7 +76,7 @@
         "config": {
           "provider": "ollama",
           "model": "llama3.2",
-          "prompt": "You are a senior career advisor and technical interview coach. Below is the retrieved knowledge and tools from the candidate's vbelle/Interview repository:\n\n=== RETRIEVED MEMORY NOTES & JDS ===\n{{memory-1}}\n\n=== TOOL AVAILABILITY ===\n{{tool-1}}\n\n=== USER QUESTION ===\n{{input-1}}\n\nAnswer the candidate's question thoroughly and accurately based on the retrieved context above.",
+          "prompt": "You are a senior career advisor and technical interview coach. Below is the retrieved knowledge and tools from the candidate's vbelle/Interview repository:\n\n=== RETRIEVED MEMORY NOTES & JDS ===\n{{Interview Vault Memory RAG}}\n\n=== TOOL AVAILABILITY ===\n{{Interview Search Tool}}\n\n=== USER QUESTION ===\n{{User Question}}\n\nAnswer the candidate's question thoroughly and accurately based on the retrieved context above.",
           "timeout_seconds": 180
         },
         "position": {
@@ -89,7 +89,7 @@
         "type": "response",
         "name": "Display Answer",
         "config": {
-          "content": "{{previous}}"
+          "content": "{{Grounded Interview Assistant}}"
         },
         "position": {
           "x": 1100,

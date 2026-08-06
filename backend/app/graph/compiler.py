@@ -7,6 +7,7 @@ the canvas saved, with no hand-written workflow code bypassing it.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import datetime, timezone
 from typing import Any
 
@@ -25,31 +26,33 @@ from app.logging import get_logger
 logger = get_logger(__name__)
 
 
-def _make_node_fn(node_id: str, node_type: str, config: dict, executor):
+def _make_node_fn(
+    node_id: str,
+    node_type: str,
+    config: dict,
+    executor: Callable,
+    node_name: str | None = None,
+):
+    actual_name = node_name or node_id
     async def _node_fn(state: GraphState) -> dict:
         started_at = datetime.now(timezone.utc)  # noqa: UP017
         input_data = state.get("node_outputs", {}).get("__latest__")
-        logger.info(
-            "[NODE ENTRY] node_id='%s' type='%s' input_preview=%s",
-            node_id,
-            node_type,
-            repr(str(input_data)[:100]) if input_data is not None else "None",
-        )
+        logger.info("[NODE ENTER] node_id='%s' name='%s' type='%s'", node_id, actual_name, node_type)
         try:
             result = await executor(node_id=node_id, config=config, state=state)
-            output_port = result.get("last_output_port", {}).get(node_id, "default")
-            output_data = result.get("node_outputs", {}).get(node_id)
+            # Duplicate output under node_name so {{Node Name}} resolves in templates!
+            if "node_outputs" in result and node_id in result["node_outputs"]:
+                val = result["node_outputs"][node_id]
+                result["node_outputs"][actual_name] = val
+                result["node_outputs"][actual_name.lower()] = val
             logger.info(
-                "[NODE EXIT SUCCESS] node_id='%s' type='%s' port='%s' output_preview=%s",
-                node_id,
-                node_type,
-                output_port,
-                repr(str(output_data)[:150]) if output_data is not None else "None",
+                "[NODE EXIT] node_id='%s' name='%s' type='%s'", node_id, actual_name, node_type
             )
         except Exception as exc:
             logger.error(
-                "[NODE EXIT FAILURE] node_id='%s' type='%s' error=%s",
+                "[NODE EXIT FAILURE] node_id='%s' name='%s' type='%s' error=%s",
                 node_id,
+                actual_name,
                 node_type,
                 exc,
                 exc_info=True,
@@ -153,7 +156,13 @@ def compile_graph(graph_json: dict[str, Any]):
         elif node_type == "merge":
             raw_config["input_node_ids"] = _resolve_merge_inputs(node_id, edges)
         config = definition.config_model(**raw_config).model_dump()
-        builder.add_node(node_id, _make_node_fn(node_id, node_type, config, definition.executor))
+        node_name = node.get("name", node_id)
+        builder.add_node(
+            node_id,
+            _make_node_fn(
+                node_id, node_type, config, definition.executor, node_name=node_name
+            ),
+        )
 
     # Group outgoing edges per node/port to build routing tables.
     outgoing: dict[str, dict[str, list[str]]] = {}
