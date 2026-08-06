@@ -130,13 +130,31 @@ async def add_documents(store_name: str, documents: list[str]) -> None:
 
 
 async def add_documents_with_metadata(
-    store_name: str, documents: list[str], metadatas: list[dict], ids: list[str]
+    store_name: str,
+    documents: list[str],
+    metadatas: list[dict],
+    ids: list[str],
+    batch_size: int = 20,
 ) -> None:
     await ensure_embedding_model_available()
     collection = get_or_create_store(store_name)
-    async with OLLAMA_SEMAPHORE:
-        await asyncio.to_thread(
-            collection.upsert, ids=ids, documents=documents, metadatas=metadatas
+    total = len(documents)
+
+    for i in range(0, total, batch_size):
+        b_docs = documents[i : i + batch_size]
+        b_meta = metadatas[i : i + batch_size]
+        b_ids = ids[i : i + batch_size]
+
+        async with OLLAMA_SEMAPHORE:
+            await asyncio.to_thread(
+                collection.upsert, ids=b_ids, documents=b_docs, metadatas=b_meta
+            )
+        logger.info(
+            "Upserted batch %d-%d / %d into '%s'",
+            i + 1,
+            min(i + batch_size, total),
+            total,
+            store_name,
         )
 
 
