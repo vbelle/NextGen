@@ -121,7 +121,7 @@ export const api = {
       body: JSON.stringify({ name, graph_json }),
     }),
 
-  generateWorkflow: (prompt: str, name?: str) =>
+  generateWorkflow: (prompt: string, name?: string) =>
     request<WorkflowSummary>("/api/workflows/generate", {
       method: "POST",
       body: JSON.stringify({ prompt, name }),
