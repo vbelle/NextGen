@@ -18,4 +18,5 @@ from app.graph.nodes import (  # noqa: F401
     subworkflow_node,
     tool_node,
     variable_node,
+    x402_paywall_node,
 )

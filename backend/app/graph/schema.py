@@ -28,13 +28,13 @@ ALLOWED_SOURCE_PORTS: dict[str, set[str]] = {
     # see app/graph/nodes/loop_node.py).
     "loop": {"body", "done"},
     "memory": {"default"},
-    "tool": {"default"},
     "subworkflow": {"success", "failure"},
     "merge": {"default"},
     "response": set(),  # terminal — no outgoing edges
     "retry": {"retry", "give-up"},
     "variable": {"default"},
     "export": {"success", "failure"},
+    "x402_paywall": {"success", "payment_required"},
 }
 
 DUAL_OUTPUT_TYPES = {"llm", "api", "code", "subworkflow", "export"}  # FR-017
