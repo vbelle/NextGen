@@ -26,6 +26,7 @@ import { ToolNode } from "./nodes/ToolNode";
 import { SubworkflowNode } from "./nodes/SubworkflowNode";
 import { MergeNode } from "./nodes/MergeNode";
 import { ExportNode } from "./nodes/ExportNode";
+import { X402PaywallNode } from "./nodes/X402PaywallNode";
 import { VersionHistory } from "../workflows/VersionHistory";
 import { api, ApiError, type GraphJson } from "../api/client";
 
@@ -44,6 +45,7 @@ const nodeTypes = {
   subworkflow: SubworkflowNode,
   merge: MergeNode,
   export: ExportNode,
+  x402_paywall: X402PaywallNode,
 };
 
 let idCounter = 0;
@@ -80,6 +82,10 @@ const DEFAULT_CONFIG: Record<string, Record<string, unknown>> = {
     email_recipient: "",
     email_subject: "NextGen Workflow Report",
     file_format: "markdown",
+  },
+  x402_paywall: {
+    price_wei: 1000,
+    pay_to_address: "0xNextGenX402PaymentAddressHub",
   },
 };
 
@@ -317,6 +323,9 @@ export function Canvas({
         <button onClick={() => addNode("subworkflow")}>+ Sub-workflow</button>
         <button onClick={() => addNode("merge")}>+ Merge</button>
         <button onClick={() => addNode("export")}>+ Export</button>
+        <button onClick={() => addNode("x402_paywall")} style={{ background: "#eab308", color: "#854d0e", fontWeight: "bold" }}>
+          💳 + x402 Paywall
+        </button>
         <button
           onClick={deleteSelected}
           title="Select a node or edge (click it, shift-click for more) then delete it — or press Backspace/Delete"
